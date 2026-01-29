@@ -1,9 +1,16 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { NicheVideoPlayer } from "@/components/ui/NicheVideoPlayer";
+import { VideoModal } from "@/components/ui/VideoModal";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { generateThumbnailUrl, detectVideoType } from "@/lib/videoUtils";
 import { ArrowRight, Play, CheckCircle } from "lucide-react";
 
 const nichosData: Record<string, {
@@ -12,7 +19,6 @@ const nichosData: Record<string, {
   description: string;
   heroImage: string;
   benefits: string[];
-  projects: { title: string; thumbnail: string; videoId: string }[];
 }> = {
   casamento: {
     title: "CASAMENTO",
@@ -26,11 +32,6 @@ const nichosData: Record<string, {
       "Same-day edit disponível",
       "Drone para cenas aéreas",
       "Entrega em até 60 dias",
-    ],
-    projects: [
-      { title: "Ana & Pedro", thumbnail: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Juliana & Marcos", thumbnail: "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Carla & Bruno", thumbnail: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
     ],
   },
   eventos: {
@@ -46,11 +47,6 @@ const nichosData: Record<string, {
       "Live streaming disponível",
       "Entrega expressa",
     ],
-    projects: [
-      { title: "Festival Music 2024", thumbnail: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Conferência Tech", thumbnail: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Gala Anual", thumbnail: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-    ],
   },
   clinicas: {
     title: "CLÍNICAS",
@@ -64,11 +60,6 @@ const nichosData: Record<string, {
       "Conteúdo para redes sociais",
       "Tours virtuais",
       "Conformidade com regulamentações",
-    ],
-    projects: [
-      { title: "Clínica Premium", thumbnail: "https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Centro Odontológico", thumbnail: "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Dermatologia Avançada", thumbnail: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
     ],
   },
   marcas: {
@@ -84,11 +75,6 @@ const nichosData: Record<string, {
       "Campanhas integradas",
       "A/B testing de criativos",
     ],
-    projects: [
-      { title: "Campaign XYZ", thumbnail: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Lançamento Produto", thumbnail: "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Brand Story", thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-    ],
   },
   food: {
     title: "FOOD",
@@ -102,11 +88,6 @@ const nichosData: Record<string, {
       "Menu em vídeo",
       "Conteúdo para delivery apps",
       "Behind the scenes",
-    ],
-    projects: [
-      { title: "Restaurante Gourmet", thumbnail: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Chef's Table", thumbnail: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Confeitaria Artesanal", thumbnail: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
     ],
   },
   imobiliario: {
@@ -122,19 +103,52 @@ const nichosData: Record<string, {
       "Virtual staging",
       "Entrega em 48h",
     ],
-    projects: [
-      { title: "Mansão Contemporânea", thumbnail: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Cobertura Duplex", thumbnail: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-      { title: "Empreendimento Premium", thumbnail: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=800&q=80", videoId: "dQw4w9WgXcQ" },
-    ],
   },
 };
 
 export default function NichoPage() {
   const { nicho } = useParams<{ nicho: string }>();
   const { ref, isVisible } = useScrollReveal<HTMLDivElement>();
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   
   const data = nicho ? nichosData[nicho] : null;
+
+  // Fetch the most recent video for the featured section
+  const { data: featuredVideo, isLoading: isFeaturedLoading } = useQuery({
+    queryKey: ["nicho-featured-video", nicho],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("portfolio_items")
+        .select("*")
+        .eq("niche", nicho!)
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!nicho,
+  });
+
+  // Fetch recent projects for the grid section
+  const { data: recentProjects, isLoading: isProjectsLoading } = useQuery({
+    queryKey: ["nicho-recent-projects", nicho],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("portfolio_items")
+        .select("*")
+        .eq("niche", nicho!)
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!nicho,
+  });
 
   if (!data) {
     return (
@@ -177,7 +191,7 @@ export default function NichoPage() {
         </div>
       </section>
 
-      {/* Benefits */}
+      {/* Benefits + Featured Video */}
       <section className="py-24 md:py-32 bg-card">
         <div className="container mx-auto px-4 lg:px-8">
           <div
@@ -213,32 +227,28 @@ export default function NichoPage() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {data.projects.slice(0, 2).map((project) => (
-                <div
-                  key={project.title}
-                  className="aspect-[3/4] rounded-lg overflow-hidden group cursor-pointer"
-                >
-                  <div className="relative w-full h-full">
-                    <img
-                      src={project.thumbnail}
-                      alt={project.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                      <div className="w-14 h-14 rounded-full bg-gold/20 backdrop-blur flex items-center justify-center border border-gold/50">
-                        <Play className="w-6 h-6 text-gold" />
-                      </div>
-                    </div>
-                  </div>
+            {/* Featured Video - Single autoplay video */}
+            <div className="aspect-[3/4] rounded-lg overflow-hidden">
+              {isFeaturedLoading ? (
+                <Skeleton className="w-full h-full" />
+              ) : featuredVideo ? (
+                <NicheVideoPlayer
+                  videoUrl={featuredVideo.video_url}
+                  videoType={featuredVideo.video_type}
+                  fallbackImage={featuredVideo.thumbnail_url || undefined}
+                  className="w-full h-full"
+                />
+              ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center">
+                  <span className="text-muted-foreground">Nenhum vídeo disponível</span>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Projects */}
+      {/* Recent Projects */}
       <section className="py-24 md:py-32">
         <div className="container mx-auto px-4 lg:px-8">
           <SectionTitle
@@ -246,28 +256,47 @@ export default function NichoPage() {
             title="PROJETOS RECENTES"
           />
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {data.projects.map((project) => (
-              <div
-                key={project.title}
-                className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer"
-              >
-                <img
-                  src={project.thumbnail}
-                  alt={project.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-white">{project.title}</h3>
-                    <div className="w-10 h-10 rounded-full bg-gold/20 backdrop-blur flex items-center justify-center border border-gold/50">
-                      <Play className="w-5 h-5 text-gold" />
+          {isProjectsLoading ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="aspect-video rounded-lg" />
+              ))}
+            </div>
+          ) : recentProjects && recentProjects.length > 0 ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {recentProjects.map((project) => {
+                const thumbnailUrl = project.thumbnail_url || 
+                  generateThumbnailUrl(project.video_url, detectVideoType(project.video_url)) ||
+                  data.heroImage;
+
+                return (
+                  <div
+                    key={project.id}
+                    onClick={() => setSelectedVideo(project.video_url)}
+                    className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer"
+                  >
+                    <img
+                      src={thumbnailUrl}
+                      alt={project.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium text-white">{project.title}</h3>
+                        <div className="w-10 h-10 rounded-full bg-gold/20 backdrop-blur flex items-center justify-center border border-gold/50">
+                          <Play className="w-5 h-5 text-gold" />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Nenhum projeto disponível neste nicho ainda.</p>
+            </div>
+          )}
 
           <div className="text-center mt-12">
             <Button
@@ -300,6 +329,13 @@ export default function NichoPage() {
           </Button>
         </div>
       </section>
+
+      {/* Video Modal */}
+      <VideoModal
+        isOpen={!!selectedVideo}
+        onClose={() => setSelectedVideo(null)}
+        videoUrl={selectedVideo || ""}
+      />
     </Layout>
   );
 }

@@ -227,8 +227,8 @@ export default function NichoPage() {
               </Button>
             </div>
 
-            {/* Featured Video - Single autoplay video */}
-            <div className="aspect-[3/4] rounded-lg overflow-hidden">
+            {/* Featured Video - Single autoplay video in 16:9 */}
+            <div className="aspect-video rounded-lg overflow-hidden">
               {isFeaturedLoading ? (
                 <Skeleton className="w-full h-full" />
               ) : featuredVideo ? (

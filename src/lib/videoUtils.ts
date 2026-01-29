@@ -120,6 +120,8 @@ export function generateEmbedUrl(
       fs: "0",
       iv_load_policy: "3",
       cc_load_policy: "0",
+      vq: "hd1080", // Force HD quality
+      hd: "1", // Enable HD mode
     });
     
     return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;

@@ -20,31 +20,37 @@ export function NicheCard({ title, description, image, href, className }: NicheC
     <Link
       to={href}
       onClick={handleClick}
-      className={cn("niche-card block group rounded-lg h-80 md:h-96", className)}
+      className={cn(
+        "niche-card block group rounded-lg h-80 md:h-96 flex flex-col bg-card border border-border/50",
+        className
+      )}
     >
-      {/* Background Image */}
-      <div className="absolute inset-0">
+      {/* Image Section - Top ~55% */}
+      <div className="relative h-[55%] overflow-hidden rounded-t-lg">
         <img
           src={image}
           alt={title}
           className="niche-image w-full h-full object-cover"
           loading="lazy"
         />
+        {/* Subtle fade at bottom of image */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
       </div>
 
-      {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
-        <div className="transform transition-transform duration-500 group-hover:-translate-y-2">
-          <h3 className="font-display text-3xl md:text-4xl tracking-wide text-white mb-2">
+      {/* Content Section - Bottom ~45% */}
+      <div className="flex flex-col justify-between flex-1 p-5 md:p-6">
+        <div>
+          <h3 className="font-display text-2xl md:text-3xl tracking-wide text-gold mb-2">
             {title}
           </h3>
-          <p className="text-white/80 text-sm md:text-base mb-4 line-clamp-2">
+          <p className="text-muted-foreground text-sm md:text-base line-clamp-2">
             {description}
           </p>
-          <div className="flex items-center gap-2 text-gold font-medium text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <span>Ver projetos</span>
-            <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 text-gold font-medium text-sm mt-3 group-hover:gap-3 transition-all duration-300">
+          <span>Ver mais</span>
+          <ArrowRight className="w-4 h-4" />
         </div>
       </div>
     </Link>

@@ -7,7 +7,8 @@ import {
   LogOut,
   BarChart3,
   X,
-  Menu
+  Menu,
+  Film
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { useState } from "react";
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard", exact: true },
   { to: "/admin/leads", icon: Users, label: "Leads" },
+  { to: "/admin/portfolio", icon: Film, label: "Portfólio" },
   { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
   { to: "/admin/tracking", icon: Settings, label: "Tracking", adminOnly: true },
 ];

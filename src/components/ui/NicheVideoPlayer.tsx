@@ -54,27 +54,21 @@ export function NicheVideoPlayer({
         <Skeleton className="absolute inset-0 z-10" />
       )}
 
-      {/* Video container with scale to hide controls */}
+      {/* Video container - clean layout without excessive scaling */}
       <div className="absolute inset-0 overflow-hidden">
-        <div
-          className="absolute inset-[-20%] w-[140%] h-[140%]"
-          style={{
-            transform: "translate(-14.3%, -14.3%)",
-          }}
-        >
-          <iframe
-            src={embedUrl}
-            title="Video player"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className={cn(
-              "w-full h-full border-0 pointer-events-none transition-opacity duration-500",
-              isLoaded ? "opacity-100" : "opacity-0"
-            )}
-            onLoad={() => setIsLoaded(true)}
-            onError={() => setHasError(true)}
-          />
-        </div>
+        <iframe
+          src={embedUrl}
+          title="Video player"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className={cn(
+            "w-full h-full border-0 pointer-events-none transition-opacity duration-500",
+            isLoaded ? "opacity-100" : "opacity-0"
+          )}
+          style={{ objectFit: "cover" }}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+        />
       </div>
     </div>
   );

@@ -154,14 +154,9 @@
     @apply relative overflow-hidden transition-all duration-500;
   }
 
-  .niche-card::before {
-    content: '';
-    @apply absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent 
-           opacity-60 transition-opacity duration-500;
-  }
-
-  .niche-card:hover::before {
-    @apply opacity-80;
+  .niche-card:hover {
+    @apply border-gold/30;
+    box-shadow: 0 8px 30px -10px hsl(var(--gold) / 0.15);
   }
 
   .niche-card:hover .niche-image {

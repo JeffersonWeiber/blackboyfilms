@@ -18,6 +18,8 @@ import AdminLogin from "./pages/admin/Login";
 import AdminDashboard from "./pages/admin/Dashboard";
 import LeadsList from "./pages/admin/LeadsList";
 import LeadDetail from "./pages/admin/LeadDetail";
+import Portfolio from "./pages/admin/Portfolio";
+import PortfolioForm from "./pages/admin/PortfolioForm";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +64,30 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <LeadDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/portfolio"
+              element={
+                <ProtectedRoute>
+                  <Portfolio />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/portfolio/new"
+              element={
+                <ProtectedRoute>
+                  <PortfolioForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/portfolio/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <PortfolioForm />
                 </ProtectedRoute>
               }
             />

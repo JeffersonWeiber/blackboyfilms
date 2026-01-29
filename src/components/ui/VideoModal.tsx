@@ -1,14 +1,19 @@
 import { X } from "lucide-react";
 import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
+import { detectVideoType, generateEmbedUrl, VideoType } from "@/lib/videoUtils";
 
 interface VideoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  videoId: string;
+  videoUrl: string;
+  videoType?: VideoType;
 }
 
-export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0`;
+export function VideoModal({ isOpen, onClose, videoUrl, videoType }: VideoModalProps) {
+  const type = videoType || detectVideoType(videoUrl);
+  const embedUrl = generateEmbedUrl(videoUrl, type);
+
+  if (!embedUrl) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -32,33 +37,46 @@ export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
             className="relative w-[90vw] max-w-5xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Outer wrapper with overflow hidden to crop the video */}
-            <div 
-              className="relative w-full overflow-hidden rounded-lg"
-              style={{ aspectRatio: '16/9' }}
-            >
-              {/* Inner wrapper that scales and positions the iframe */}
+            {type === "youtube" ? (
+              // YouTube with crop technique to hide branding
               <div 
-                className="absolute"
-                style={{
-                  width: '140%',
-                  height: '140%',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                }}
+                className="relative w-full overflow-hidden rounded-lg"
+                style={{ aspectRatio: '16/9' }}
+              >
+                <div 
+                  className="absolute"
+                  style={{
+                    width: '140%',
+                    height: '140%',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <iframe
+                    src={embedUrl}
+                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                    allowFullScreen
+                    className="w-full h-full border-0"
+                    style={{ pointerEvents: "none" }}
+                  />
+                </div>
+                <div className="absolute inset-0 z-10" />
+              </div>
+            ) : (
+              // Google Drive - no cropping needed
+              <div 
+                className="relative w-full overflow-hidden rounded-lg"
+                style={{ aspectRatio: '16/9' }}
               >
                 <iframe
                   src={embedUrl}
-                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                  allow="autoplay; fullscreen"
                   allowFullScreen
                   className="w-full h-full border-0"
-                  style={{ pointerEvents: "none" }}
                 />
               </div>
-              {/* Invisible overlay to block any interactions */}
-              <div className="absolute inset-0 z-10" />
-            </div>
+            )}
           </div>
         </div>
       </DialogPortal>

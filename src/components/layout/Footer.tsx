@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Instagram, Youtube, Linkedin, Mail, MapPin } from "lucide-react";
+import logoBlackboy from "@/assets/logo-blackboy-films.svg";
 
 const socialLinks = [
   { href: "https://instagram.com/blackboyfilms", icon: Instagram, label: "Instagram" },
@@ -37,8 +38,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link to="/" className="font-display text-2xl tracking-wider text-gradient">
-              BLACKBOY FILMS
+            <Link to="/">
+              <img src={logoBlackboy} alt="Blackboy Films" className="h-10 w-auto" />
             </Link>
             <p className="mt-4 text-muted-foreground text-sm leading-relaxed">
               Transformamos histórias em experiências cinematográficas inesquecíveis. 

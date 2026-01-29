@@ -1,204 +1,139 @@
 
 
-## Plano: Sistema Completo de Gestão de Portfólio no Admin
+## Plano: Video Dinamico nas Paginas de Nicho
 
-Criar um módulo profissional de CMS para gerenciar o portfólio, com suporte a vídeos do YouTube e Google Drive, autoplay limpo e gestão completa.
-
----
-
-### 1. Banco de Dados (Supabase)
-
-**Nova tabela: `portfolio_items`**
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| `id` | UUID | Chave primaria |
-| `title` | TEXT | Titulo do projeto (obrigatorio) |
-| `description` | TEXT | Descricao curta |
-| `niche` | TEXT | casamento, eventos, clinicas, marcas, food, imobiliario |
-| `video_url` | TEXT | URL completa (YouTube ou Drive) |
-| `video_type` | TEXT | "youtube" ou "drive" (detectado automaticamente) |
-| `thumbnail_url` | TEXT | URL da thumbnail (auto-extraida ou customizada) |
-| `is_featured` | BOOLEAN | Destaque na home |
-| `is_published` | BOOLEAN | Visivel no site publico |
-| `display_order` | INTEGER | Ordem de exibicao |
-| `created_at` | TIMESTAMP | Data de criacao |
-| `updated_at` | TIMESTAMP | Ultima atualizacao |
-| `created_by` | UUID | Usuario que criou |
-
-**Politicas RLS:**
-- SELECT publico para `is_published = true`
-- SELECT/INSERT/UPDATE para admin e editor autenticados
-- DELETE apenas para admin
+Integrar as paginas de nicho com o banco de dados `portfolio_items` para exibir videos em autoplay/loop e projetos recentes dinamicos.
 
 ---
 
-### 2. Suporte a YouTube e Google Drive
+### Mudancas Necessarias
 
-**Deteccao automatica do tipo de video:**
+**Arquivo: `src/pages/NichoPage.tsx`**
 
-| Fonte | Formato da URL | Video ID |
-|-------|----------------|----------|
-| YouTube | `youtube.com/watch?v=ID`, `youtu.be/ID` | Extrai o ID do video |
-| Drive | `drive.google.com/file/d/ID/view` | Extrai o ID do arquivo |
+#### 1. Secao "Incluido no Servico" - Video Unico com Autoplay
 
-**Thumbnails automaticas:**
-- YouTube: `https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg`
-- Drive: Usa a thumbnail do Google ou permite upload customizado
+**Situacao atual:**
+- Exibe 2 thumbnails estaticas do array `nichosData`
+- Usuario precisa clicar para ver o video
 
-**Embed URLs (com autoplay limpo):**
-- YouTube: Usa os parametros ja configurados (autoplay, mute, controls=0, etc.)
-- Drive: `https://drive.google.com/file/d/ID/preview` (nota: Drive tem menos controle sobre UI)
-
----
-
-### 3. Interface Admin - Paginas
-
-**3.1 Lista de Portfolio (`/admin/portfolio`)**
+**Nova implementacao:**
+- Buscar o projeto mais recente do nicho atual no Supabase
+- Ordenar por `created_at DESC` e limitar a 1 resultado
+- Exibir como video embeddado (nao thumbnail)
+- Configurar autoplay + muted + loop
+- Usar a tecnica de zoom (140%) para esconder controles do YouTube
+- Layout: um unico video ocupando a area ao inves de 2 cards
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│  PORTFOLIO                              [+ Novo Projeto]    │
+│  INCLUIDO NO SERVICO                                        │
 ├─────────────────────────────────────────────────────────────┤
-│  [Buscar...]  [Nicho ▼]  [Status ▼]                         │
-├─────────────────────────────────────────────────────────────┤
-│  ┌──────┬────────────────┬──────────┬────────┬───────────┐  │
-│  │Thumb │ Titulo         │ Nicho    │ Status │ Acoes     │  │
-│  ├──────┼────────────────┼──────────┼────────┼───────────┤  │
-│  │ 🖼   │ Wedding Film   │ Casamento│ ✅ Pub │ ⭐ ✏️ 🗑️  │  │
-│  │ 🖼   │ Evento Corp    │ Eventos  │ 📝 Ras │ ✏️ 🗑️     │  │
-│  └──────┴────────────────┴──────────┴────────┴───────────┘  │
+│  ┌─────────────────────┐   ┌─────────────────────────────┐  │
+│  │ ✓ Cobertura completa│   │                             │  │
+│  │ ✓ Filme principal   │   │   ┌───────────────────┐    │  │
+│  │ ✓ Teaser redes      │   │   │                   │    │  │
+│  │ ✓ Same-day edit     │   │   │   VIDEO AUTOPLAY  │    │  │
+│  │ ✓ Drone             │   │   │   (loop infinito) │    │  │
+│  │ ✓ Entrega 60 dias   │   │   │                   │    │  │
+│  │                     │   │   └───────────────────┘    │  │
+│  │ [Solicitar Orcam.] │   │                             │  │
+│  └─────────────────────┘   └─────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- Tabela com thumbnail, titulo, nicho, status, acoes
-- Filtros por nicho e status (publicado/rascunho)
-- Busca por titulo
-- Badge para itens "Destaque"
-- Acoes: Editar, Publicar/Despublicar, Destaque, Excluir
+#### 2. Secao "Projetos Recentes" - Dados Dinamicos
 
-**3.2 Formulario Criar/Editar (`/admin/portfolio/new` e `/admin/portfolio/:id/edit`)**
+**Situacao atual:**
+- Exibe 3 projetos do array estatico `nichosData`
+
+**Nova implementacao:**
+- Buscar projetos publicados do nicho atual no Supabase
+- Filtrar: `is_published = true` AND `niche = nicho_atual`
+- Ordenar: `created_at DESC` (mais recentes primeiro)
+- Limitar: 3 projetos
+- Ao clicar, abrir o VideoModal existente com a URL do video
+
+---
+
+### Codigo - Resumo das Alteracoes
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│  ← NOVO PROJETO                                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Titulo do Projeto *                                        │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ Wedding Film - Ana & Pedro                          │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  Descricao                                                  │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ Um lindo casamento ao ar livre em Trancoso...       │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  Nicho *                    ┌ YouTube  ┐ ┌ Drive ┐          │
-│  ┌──────────────────┐       │    ⬤     │ │   ○   │          │
-│  │ Casamento      ▼ │       └──────────┘ └───────┘          │
-│  └──────────────────┘                                       │
-│                                                             │
-│  URL do Video *                                             │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ https://youtube.com/watch?v=abc123                  │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │                                                     │    │
-│  │              PREVIEW DO VIDEO                       │    │
-│  │           (carrega ao colar URL)                    │    │
-│  │                                                     │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  Thumbnail (opcional - auto-extraida do YouTube)            │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ URL da imagem customizada (deixe vazio para auto)   │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  ☐ Publicado     ☐ Destaque                                 │
-│                                                             │
-│  ┌─────────────────┐  ┌─────────────────┐                   │
-│  │   Cancelar      │  │   Salvar        │                   │
-│  └─────────────────┘  └─────────────────┘                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+1. Adicionar imports:
+   - useQuery do @tanstack/react-query
+   - supabase client
+   - generateEmbedUrl, detectVideoType de videoUtils
+   - useState para controlar VideoModal
+
+2. Criar query para buscar o video mais recente do nicho:
+   SELECT * FROM portfolio_items
+   WHERE niche = $nicho AND is_published = true
+   ORDER BY created_at DESC
+   LIMIT 1
+
+3. Criar query para buscar projetos recentes do nicho:
+   SELECT * FROM portfolio_items
+   WHERE niche = $nicho AND is_published = true
+   ORDER BY created_at DESC
+   LIMIT 3
+
+4. Substituir a grid de 2 thumbnails por:
+   - Um unico iframe com o video embeddado
+   - Usar generateEmbedUrl com autoplay=true, loop=true
+   - Aplicar escala 140% para esconder UI do player
+   - Fallback para placeholder se nao houver video
+
+5. Substituir data.projects por projectsFromDb:
+   - Mapear os dados do Supabase
+   - Adicionar onClick para abrir VideoModal
+   - Usar thumbnail_url do banco ou gerar automaticamente
 ```
 
 ---
 
-### 4. Atualizacao do VideoModal
+### Mapeamento de Nichos
 
-**Suporte a multiplas fontes:**
-- Detecta se eh YouTube ou Drive
-- Aplica parametros de autoplay/esconder controles para YouTube
-- Para Drive: mostra preview limpo (Drive tem limitacoes de customizacao)
+Os nichos no banco usam valores como "casamento", "eventos", etc. O parametro da URL `:nicho` ja corresponde a esses valores, entao o filtro funcionara diretamente.
 
 ---
 
-### 5. Pagina Works Dinamica
+### Componente de Video Inline
 
-**Alteracoes em `src/pages/Works.tsx`:**
-- Remover array estatico `projects`
-- Buscar do Supabase: `portfolio_items` onde `is_published = true`
-- Ordenar por `display_order` e `created_at`
-- Manter filtros por nicho funcionando
-- Passar `video_url` e `video_type` para o modal
-
----
-
-### 6. Arquivos a Criar/Modificar
-
-| Arquivo | Acao | Descricao |
-|---------|------|-----------|
-| **Migration SQL** | Criar | Tabela `portfolio_items` + RLS |
-| `src/lib/videoUtils.ts` | Criar | Funcoes para detectar tipo, extrair ID, gerar embed URL |
-| `src/pages/admin/Portfolio.tsx` | Criar | Lista de projetos com acoes |
-| `src/pages/admin/PortfolioForm.tsx` | Criar | Formulario criar/editar |
-| `src/components/admin/VideoPreview.tsx` | Criar | Preview do video no formulario |
-| `src/components/admin/AdminSidebar.tsx` | Modificar | Adicionar link "Portfolio" |
-| `src/pages/Works.tsx` | Modificar | Buscar dados do Supabase |
-| `src/components/ui/VideoModal.tsx` | Modificar | Suporte a YouTube e Drive |
-| `src/App.tsx` | Modificar | Adicionar rotas do portfolio |
-
----
-
-### 7. Funcoes Utilitarias (videoUtils.ts)
+Criar um componente reutilizavel para exibir video embeddado com autoplay:
 
 ```text
-detectVideoType(url) → "youtube" | "drive" | "unknown"
-extractVideoId(url, type) → string
-generateThumbnailUrl(url, type) → string
-generateEmbedUrl(url, type, autoplay) → string
+<NicheVideoPlayer>
+  - Recebe video_url e video_type
+  - Gera embed URL com autoplay + loop
+  - Aplica escala 140% para esconder controles
+  - Exibe skeleton enquanto carrega
+  - Fallback para imagem se video nao disponivel
+</NicheVideoPlayer>
 ```
 
 ---
 
-### 8. Nota sobre Google Drive
+### Arquivos a Modificar
 
-**Limitacoes:**
-- Google Drive nao oferece controle total sobre a UI do player
-- Autoplay pode nao funcionar em todos os navegadores
-- Requer que o arquivo esteja compartilhado publicamente
-
-**Recomendacao:**
-- YouTube oferece melhor experiencia (autoplay, sem controles, loop)
-- Drive eh util para videos privados ou nao hospedados no YouTube
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/NichoPage.tsx` | Adicionar queries do Supabase, substituir dados estaticos por dinamicos, implementar video autoplay inline |
+| `src/components/ui/NicheVideoPlayer.tsx` (novo) | Componente de video embeddado com autoplay/loop para uso nas paginas de nicho |
 
 ---
 
-### 9. Fluxo de Trabalho do Usuario
+### Comportamento Esperado
 
-```text
-1. Admin acessa /admin/portfolio
-2. Clica em "+ Novo Projeto"
-3. Preenche titulo, seleciona nicho
-4. Cola URL do YouTube ou Drive
-5. Sistema detecta automaticamente o tipo
-6. Preview do video aparece
-7. Thumbnail eh extraida automaticamente (pode customizar)
-8. Marca como "Publicado" e "Destaque" se quiser
-9. Salva
-10. Video aparece no site publico em /works
-```
+1. Usuario acessa `/nicho/casamento`
+2. Na secao "Incluido no Servico", video mais recente do nicho "casamento" comeca a tocar automaticamente em loop
+3. Na secao "Projetos Recentes", aparecem os 3 projetos mais recentes do nicho
+4. Ao clicar em um projeto, abre o modal com o video
+5. Se nao houver projetos no banco, exibe mensagem ou placeholder
+
+---
+
+### Nota sobre Performance
+
+- Videos do YouTube com autoplay sao mutados por padrao (exigencia dos navegadores)
+- O video fica em loop infinito ate o usuario sair da pagina
+- Lazy loading para evitar carregar todos os videos de uma vez
 

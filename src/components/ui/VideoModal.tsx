@@ -8,7 +8,6 @@ interface VideoModalProps {
 }
 
 export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
-  // Using YouTube nocookie domain + all hiding parameters
   const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0`;
 
   return (
@@ -28,34 +27,36 @@ export function VideoModal({ isOpen, onClose, videoId }: VideoModalProps) {
             <X className="w-6 h-6" />
           </button>
 
-          {/* Video Container - cropped to hide YouTube branding */}
+          {/* Video Container */}
           <div
-            className="relative w-full max-w-6xl mx-4 md:mx-8"
+            className="relative w-[90vw] max-w-5xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Wrapper that clips the iframe edges */}
+            {/* Outer wrapper with overflow hidden to crop the video */}
             <div 
               className="relative w-full overflow-hidden rounded-lg"
-              style={{ 
-                aspectRatio: '16/9',
-              }}
+              style={{ aspectRatio: '16/9' }}
             >
-              {/* Scaled iframe to crop out YouTube branding */}
-              <iframe
-                src={embedUrl}
-                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                allowFullScreen
-                className="absolute border-0"
-                style={{ 
-                  pointerEvents: "none",
-                  width: '300%',
-                  height: '300%',
+              {/* Inner wrapper that scales and positions the iframe */}
+              <div 
+                className="absolute"
+                style={{
+                  width: '140%',
+                  height: '140%',
                   top: '50%',
                   left: '50%',
-                  transform: 'translate(-50%, -50%) scale(0.34)',
+                  transform: 'translate(-50%, -50%)',
                 }}
-              />
-              {/* Invisible overlay to block any YouTube UI interactions */}
+              >
+                <iframe
+                  src={embedUrl}
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                  style={{ pointerEvents: "none" }}
+                />
+              </div>
+              {/* Invisible overlay to block any interactions */}
               <div className="absolute inset-0 z-10" />
             </div>
           </div>

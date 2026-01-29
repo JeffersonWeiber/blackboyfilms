@@ -20,6 +20,7 @@ import LeadsList from "./pages/admin/LeadsList";
 import LeadDetail from "./pages/admin/LeadDetail";
 import Portfolio from "./pages/admin/Portfolio";
 import PortfolioForm from "./pages/admin/PortfolioForm";
+import Analytics from "./pages/admin/Analytics";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PortfolioForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
                 </ProtectedRoute>
               }
             />

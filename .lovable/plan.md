@@ -1,89 +1,91 @@
 
 
-## Plano: Corrigir Visualizacao do Video nas Paginas de Nicho
+## Plano: Corrigir Exibicao do Portfolio na Pagina Works
 
-### Problema Atual
+### Problema Identificado
 
-O video esta sendo cortado e aparece "em pe" com uma area preta embaixo porque:
-- O container usa `aspect-[3/4]` (formato retrato/vertical)
-- A escala de 140% para esconder controles do YouTube amplia o video e corta as bordas
-- Videos 16:9 (1920x1080) sao forcados em containers verticais
+O portfolio nao exibe projetos quando uma categoria e selecionada porque:
+
+1. O CSS `.reveal-stagger > *` define `opacity: 0` para todos os filhos do grid
+2. O hook `useScrollReveal` usa Intersection Observer com `triggerOnce: true`
+3. Quando a pagina carrega, o grid esta vazio (dados ainda nao chegaram do Supabase)
+4. O observer dispara com `isIntersecting: true` antes dos dados carregarem
+5. Quando os dados chegam, `isVisible` pode nao ser mais atualizado porque o observer ja foi desconectado
+6. Resultado: os cards ficam com `opacity: 0` permanentemente
 
 ### Solucao
 
-Ajustar o componente `NicheVideoPlayer` e o container na `NichoPage` para:
-1. Manter o aspect ratio original do video (16:9)
-2. Remover a escala excessiva que corta o conteudo
-3. Usar uma abordagem mais sutil para esconder os controles
-4. Garantir melhor qualidade de video com parametros corretos
+Ajustar a logica de visibilidade para garantir que:
+- A animacao so inicie apos os dados terem sido carregados
+- O Intersection Observer seja re-configurado quando os dados mudarem
+- O filtro de categoria funcione corretamente com a animacao
 
 ---
 
 ### Alteracoes Necessarias
 
-#### Arquivo: `src/components/ui/NicheVideoPlayer.tsx`
+#### Arquivo: `src/pages/Works.tsx`
 
-**Remover a escala 140%** que corta o video e usar uma abordagem mais limpa:
+**1. Forcar visibilidade quando dados estiverem carregados**
 
-```text
-ANTES (problema):
-- Container interno: inset-[-20%] w-[140%] h-[140%]
-- Transforma o video em 140% do tamanho e corta as bordas
-- Resultado: video cortado, visualizacao ruim
-
-DEPOIS (solucao):
-- Container simples sem escala excessiva
-- Usar parametros do YouTube para minimizar a UI
-- Manter o video em seu tamanho natural
-- Leve escala (~103-105%) apenas para esconder borda fina do player
-```
-
-Mudancas tecnicas:
-- Remover `inset-[-20%]`, `w-[140%]`, `h-[140%]`
-- Usar `w-full h-full` com `object-fit: contain` via CSS
-- Manter autoplay, muted, loop
-- Adicionar parametro `vq=hd1080` para alta qualidade
-
-#### Arquivo: `src/pages/NichoPage.tsx`
-
-**Alterar o aspect ratio do container** de vertical para horizontal:
+Adicionar logica para que o grid so use a animacao apos os dados estarem disponiveis:
 
 ```text
 ANTES:
-- <div className="aspect-[3/4]"> (retrato)
+- Grid usa reveal-stagger sempre
+- isVisible depende apenas do IntersectionObserver
+- Quando dados carregam, observer ja pode ter desconectado
 
 DEPOIS:
-- <div className="aspect-video"> (16:9, equivalente a 1920x1080)
+- Se nao esta carregando E tem projetos: aplicar visible imediatamente
+- OU: manter a animacao mas resetar quando a categoria mudar
+- Alternativa mais simples: remover animacao do grid ou forcar visible quando ha dados
 ```
 
-Isso garante que:
-- Videos horizontais (maioria) exibam corretamente
-- O layout se adapte ao formato natural do video
-- Nenhum corte ou distorcao
+**2. Opcao Recomendada: Simplificar a animacao**
 
-#### Arquivo: `src/lib/videoUtils.ts`
-
-**Adicionar parametro de qualidade** no embed do YouTube:
+Como o conteudo e dinamico e depende de dados assincronos, a abordagem mais robusta e:
 
 ```text
-Adicionar ao generateEmbedUrl:
-- vq=hd1080 (forca qualidade 1080p)
-- hd=1 (ativa modo HD)
+Opcao A (mais simples):
+- Remover reveal-stagger do grid
+- Manter apenas a animacao de hover nos cards
+- Os projetos aparecem imediatamente quando carregados
+
+Opcao B (manter animacao):
+- Adicionar condicao: se !isLoading && projects existe, forcar visible
+- className={cn(
+    "grid ... reveal-stagger",
+    (isVisible || (!isLoading && filteredProjects?.length)) && "visible"
+  )}
+```
+
+**3. Estrutura do codigo proposto:**
+
+```text
+// Mudar a logica de className no grid:
+
+<div
+  ref={ref}
+  className={cn(
+    "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 reveal-stagger",
+    // Forcar visible quando dados estao carregados OU observer detectou
+    (isVisible || (!isLoading && filteredProjects && filteredProjects.length > 0)) && "visible"
+  )}
+>
 ```
 
 ---
 
-### Padrao para Todas as Paginas de Nicho
+### Comportamento Esperado
 
-A mudanca no `NicheVideoPlayer.tsx` sera automaticamente aplicada a todas as paginas:
-- `/nicho/casamento`
-- `/nicho/eventos`
-- `/nicho/clinicas`
-- `/nicho/marcas`
-- `/nicho/food`
-- `/nicho/imobiliario`
-
-Como todas usam o mesmo componente, a correcao sera universal.
+1. Usuario acessa `/works`
+2. Filtros aparecem: Todos, Casamento, Eventos, Clinicas, etc
+3. Com "Todos" selecionado: todos os projetos publicados aparecem
+4. Ao clicar em "Casamento": apenas projetos do nicho casamento aparecem
+5. Projetos exibem thumbnail, titulo, tag de categoria
+6. Ao clicar no projeto: abre modal com video
+7. Animacao de entrada funciona corretamente
 
 ---
 
@@ -91,19 +93,11 @@ Como todas usam o mesmo componente, a correcao sera universal.
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/ui/NicheVideoPlayer.tsx` | Remover escala 140%, usar layout natural, manter autoplay/loop |
-| `src/pages/NichoPage.tsx` | Mudar aspect ratio de `3/4` para `video` (16:9) |
-| `src/lib/videoUtils.ts` | Adicionar parametros de qualidade HD ao embed |
+| `src/pages/Works.tsx` | Corrigir logica de visibilidade para funcionar com dados dinamicos |
 
 ---
 
-### Resultado Esperado
+### Nota Tecnica
 
-1. Video exibido em proporcao correta 16:9 (1920x1080)
-2. Sem cortes ou distorcao
-3. Autoplay mantido (mutado)
-4. Loop infinito mantido
-5. Melhor qualidade de video (1080p quando disponivel)
-6. Interface limpa sem controles intrusivos do YouTube
-7. Padrao consistente em todas as paginas de nicho
+Esta e uma correcao pontual. Para uma solucao mais robusta no futuro, o hook `useScrollReveal` poderia aceitar uma dependencia para re-observar quando os dados mudam, ou um parametro `enabled` para so iniciar a observacao quando os dados estiverem prontos.
 

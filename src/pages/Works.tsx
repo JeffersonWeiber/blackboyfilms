@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { VideoModal } from "@/components/ui/VideoModal";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { cn } from "@/lib/utils";
 import { Play } from "lucide-react";
+
+interface SelectedVideo {
+  videoId: string;
+  title: string;
+}
 
 const categories = [
   { id: "all", label: "Todos" },
@@ -76,11 +82,23 @@ const projects = [
 
 export default function Works() {
   const [activeCategory, setActiveCategory] = useState("all");
+  const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
   const { ref, isVisible } = useScrollReveal<HTMLDivElement>();
 
   const filteredProjects = activeCategory === "all"
     ? projects
     : projects.filter((p) => p.category === activeCategory);
+
+  const handleProjectClick = (project: typeof projects[0]) => {
+    setSelectedVideo({
+      videoId: project.videoId,
+      title: project.title,
+    });
+  };
+
+  const handleCloseModal = () => {
+    setSelectedVideo(null);
+  };
 
   return (
     <Layout>
@@ -126,7 +144,7 @@ export default function Works() {
               <div
                 key={project.id}
                 className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer"
-                onClick={() => console.log("Event: view_portfolio_item", { id: project.id })}
+                onClick={() => handleProjectClick(project)}
               >
                 <img
                   src={project.thumbnail}
@@ -157,6 +175,14 @@ export default function Works() {
           </div>
         </div>
       </section>
+
+      {/* Video Modal */}
+      <VideoModal
+        isOpen={!!selectedVideo}
+        onClose={handleCloseModal}
+        videoId={selectedVideo?.videoId || ""}
+        title={selectedVideo?.title}
+      />
     </Layout>
   );
 }

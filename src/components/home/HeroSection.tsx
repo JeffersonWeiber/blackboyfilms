@@ -2,6 +2,7 @@ import { ArrowDown, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { cn } from "@/lib/utils";
+import heroBackground from "@/assets/hero-background.png";
 
 export function HeroSection() {
   const { ref, isVisible } = useScrollReveal<HTMLElement>();
@@ -13,19 +14,15 @@ export function HeroSection() {
 
   return (
     <section ref={ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Video - Replace with actual video */}
+      {/* Background Image */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/50 to-background" />
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="w-full h-full object-cover opacity-40"
-          poster="https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1920&q=80"
-        >
-          <source src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" type="video/mp4" />
-        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/50 to-background z-10" />
+        <img
+          src={heroBackground}
+          alt=""
+          className="w-full h-full object-cover"
+          loading="eager"
+        />
       </div>
 
       {/* Content */}

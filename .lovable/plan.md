@@ -1,103 +1,223 @@
 
 
-## Plano: Corrigir Exibicao do Portfolio na Pagina Works
+## Plano: Kanban de Leads e Tela Analytics
 
-### Problema Identificado
+### 1. Visao Geral
 
-O portfolio nao exibe projetos quando uma categoria e selecionada porque:
+Implementar duas funcionalidades principais no painel Admin:
 
-1. O CSS `.reveal-stagger > *` define `opacity: 0` para todos os filhos do grid
-2. O hook `useScrollReveal` usa Intersection Observer com `triggerOnce: true`
-3. Quando a pagina carrega, o grid esta vazio (dados ainda nao chegaram do Supabase)
-4. O observer dispara com `isIntersecting: true` antes dos dados carregarem
-5. Quando os dados chegam, `isVisible` pode nao ser mais atualizado porque o observer ja foi desconectado
-6. Resultado: os cards ficam com `opacity: 0` permanentemente
-
-### Solucao
-
-Ajustar a logica de visibilidade para garantir que:
-- A animacao so inicie apos os dados terem sido carregados
-- O Intersection Observer seja re-configurado quando os dados mudarem
-- O filtro de categoria funcione corretamente com a animacao
+1. **Kanban de Leads** - Visualizacao e gestao de leads em colunas por status com drag-and-drop
+2. **Tela Analytics** - Dashboard com graficos de crescimento e metricas de conversao
 
 ---
 
-### Alteracoes Necessarias
+### 2. Kanban de Leads
 
-#### Arquivo: `src/pages/Works.tsx`
+#### Estrutura do Kanban
 
-**1. Forcar visibilidade quando dados estiverem carregados**
+Colunas baseadas nos status existentes no sistema:
 
-Adicionar logica para que o grid so use a animacao apos os dados estarem disponiveis:
+| Coluna | Status | Cor |
+|--------|--------|-----|
+| Novos | `novo` | Azul |
+| Em Contato | `em_contato` | Amarelo |
+| Proposta Enviada | `proposta_enviada` | Roxo |
+| Fechados | `fechado` | Verde |
+| Perdidos | `perdido` | Vermelho |
 
-```text
-ANTES:
-- Grid usa reveal-stagger sempre
-- isVisible depende apenas do IntersectionObserver
-- Quando dados carregam, observer ja pode ter desconectado
+#### Funcionalidades
 
-DEPOIS:
-- Se nao esta carregando E tem projetos: aplicar visible imediatamente
-- OU: manter a animacao mas resetar quando a categoria mudar
-- Alternativa mais simples: remover animacao do grid ou forcar visible quando ha dados
+- Drag and drop entre colunas (atualiza status automaticamente)
+- Contador de leads por coluna
+- Card do lead com: nome, telefone, nicho, data
+- Click no card abre detalhes do lead
+- Acoes rapidas: WhatsApp, email
+- Filtro por nicho
+- Alternancia entre visualizacao: Kanban / Lista (ja existente)
+
+#### Componentes a Criar
+
+- `src/components/admin/LeadsKanban.tsx` - Container principal do Kanban
+- `src/components/admin/KanbanColumn.tsx` - Coluna individual
+- `src/components/admin/KanbanCard.tsx` - Card do lead arrastavel
+
+---
+
+### 3. Tela Analytics - Metricas Recomendadas
+
+Baseado nos dados disponiveis (tabela `leads`), as metricas mais relevantes sao:
+
+#### 3.1 KPIs Principais (Cards no Topo)
+
+| Metrica | Descricao | Calculo |
+|---------|-----------|---------|
+| Total de Leads | Todos os leads recebidos | `COUNT(*)` |
+| Taxa de Conversao | % de leads que fecharam | `fechados / total * 100` |
+| Tempo Medio de Resposta | Media de dias ate primeiro contato | `AVG(data_em_contato - data_criacao)` |
+| Valor Medio por Nicho | Distribuicao de leads por nicho | Agrupamento |
+
+#### 3.2 Graficos de Crescimento
+
+**Grafico 1: Leads ao Longo do Tempo (Linha)**
+- Eixo X: Dias/Semanas/Meses
+- Eixo Y: Quantidade de leads
+- Filtro de periodo: 7d, 30d, 90d, 12m
+- Mostra tendencia de crescimento
+
+**Grafico 2: Leads por Nicho (Barras)**
+- Cada barra = um nicho
+- Altura = quantidade de leads
+- Cores diferenciadas por nicho
+
+**Grafico 3: Funil de Conversao (Barras Horizontais)**
+- Visualizacao do pipeline
+- Novo -> Em Contato -> Proposta -> Fechado
+- Mostra taxa de conversao entre etapas
+
+**Grafico 4: Distribuicao por Status (Donut/Pizza)**
+- Proporcao de leads por status
+- Bom para visao geral rapida
+
+#### 3.3 Tabelas e Insights
+
+**Origem do Trafego**
+- UTM Source mais frequentes
+- UTM Campaign com melhor conversao
+- Pagina de origem (source_page)
+
+**Performance por Nicho**
+- Nicho com mais leads
+- Nicho com maior taxa de conversao
+- Tendencia de crescimento por nicho
+
+#### 3.4 Filtros Globais
+
+- Periodo: Hoje, 7 dias, 30 dias, 90 dias, Ano, Customizado
+- Nicho: Todos / Individual
+- Status: Todos / Individual
+
+---
+
+### 4. Arquitetura Tecnica
+
+#### Novos Arquivos
+
+```
+src/pages/admin/
+  Analytics.tsx           # Nova pagina de analytics
+  LeadsKanban.tsx         # Pagina do Kanban (nova)
+
+src/components/admin/
+  LeadsKanban.tsx         # Componente Kanban principal
+  KanbanColumn.tsx        # Coluna do Kanban
+  KanbanCard.tsx          # Card arrastavel
+  AnalyticsCharts.tsx     # Graficos do analytics
+  AnalyticsKPIs.tsx       # Cards de KPIs
+  DateRangeFilter.tsx     # Filtro de periodo
 ```
 
-**2. Opcao Recomendada: Simplificar a animacao**
+#### Bibliotecas Utilizadas
 
-Como o conteudo e dinamico e depende de dados assincronos, a abordagem mais robusta e:
+- **recharts** (ja instalado) - Para todos os graficos
+- **date-fns** (ja instalado) - Manipulacao de datas
 
-```text
-Opcao A (mais simples):
-- Remover reveal-stagger do grid
-- Manter apenas a animacao de hover nos cards
-- Os projetos aparecem imediatamente quando carregados
+#### Implementacao do Drag-and-Drop
 
-Opcao B (manter animacao):
-- Adicionar condicao: se !isLoading && projects existe, forcar visible
-- className={cn(
-    "grid ... reveal-stagger",
-    (isVisible || (!isLoading && filteredProjects?.length)) && "visible"
-  )}
+Usar a API nativa de HTML5 Drag and Drop:
+- `draggable="true"` nos cards
+- `onDragStart`, `onDragOver`, `onDrop` para controle
+- Atualizar status no Supabase ao soltar
+
+---
+
+### 5. Queries SQL para Analytics
+
+**Leads por periodo:**
+```sql
+SELECT 
+  DATE(created_at) as date,
+  COUNT(*) as count
+FROM leads
+WHERE created_at >= NOW() - INTERVAL '30 days'
+GROUP BY DATE(created_at)
+ORDER BY date
 ```
 
-**3. Estrutura do codigo proposto:**
+**Leads por nicho:**
+```sql
+SELECT 
+  niche,
+  COUNT(*) as count
+FROM leads
+GROUP BY niche
+ORDER BY count DESC
+```
 
-```text
-// Mudar a logica de className no grid:
+**Funil de conversao:**
+```sql
+SELECT 
+  status,
+  COUNT(*) as count
+FROM leads
+GROUP BY status
+```
 
-<div
-  ref={ref}
-  className={cn(
-    "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 reveal-stagger",
-    // Forcar visible quando dados estao carregados OU observer detectou
-    (isVisible || (!isLoading && filteredProjects && filteredProjects.length > 0)) && "visible"
-  )}
->
+**Origem do trafego:**
+```sql
+SELECT 
+  COALESCE(utm_source, 'Direto') as source,
+  COUNT(*) as count
+FROM leads
+GROUP BY utm_source
+ORDER BY count DESC
+LIMIT 10
 ```
 
 ---
 
-### Comportamento Esperado
+### 6. Rotas a Adicionar
 
-1. Usuario acessa `/works`
-2. Filtros aparecem: Todos, Casamento, Eventos, Clinicas, etc
-3. Com "Todos" selecionado: todos os projetos publicados aparecem
-4. Ao clicar em "Casamento": apenas projetos do nicho casamento aparecem
-5. Projetos exibem thumbnail, titulo, tag de categoria
-6. Ao clicar no projeto: abre modal com video
-7. Animacao de entrada funciona corretamente
+| Rota | Componente | Descricao |
+|------|------------|-----------|
+| `/admin/analytics` | Analytics.tsx | Dashboard de analytics |
+| `/admin/leads/kanban` | LeadsKanban.tsx | Visualizacao Kanban |
 
----
-
-### Arquivos a Modificar
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/Works.tsx` | Corrigir logica de visibilidade para funcionar com dados dinamicos |
+A rota `/admin/leads` atual continuara funcionando com a visualizacao em lista.
 
 ---
 
-### Nota Tecnica
+### 7. UI/UX
 
-Esta e uma correcao pontual. Para uma solucao mais robusta no futuro, o hook `useScrollReveal` poderia aceitar uma dependencia para re-observar quando os dados mudam, ou um parametro `enabled` para so iniciar a observacao quando os dados estiverem prontos.
+- Manter a estetica dark cinematografica do site
+- Usar a cor gold (#D4AF37) como destaque nos graficos
+- Cards com bordas sutis e sombras suaves
+- Graficos responsivos
+- Animacoes suaves ao carregar dados
+- Loading skeletons enquanto carrega
+
+---
+
+### 8. Ordem de Implementacao
+
+1. **Passo 1**: Criar pagina `/admin/analytics` basica com KPIs
+2. **Passo 2**: Adicionar graficos de linha (leads ao longo do tempo)
+3. **Passo 3**: Adicionar graficos de barra (nicho) e donut (status)
+4. **Passo 4**: Implementar filtros de periodo e nicho
+5. **Passo 5**: Criar componentes do Kanban
+6. **Passo 6**: Implementar drag-and-drop
+7. **Passo 7**: Integrar Kanban na pagina de leads
+8. **Passo 8**: Adicionar rota no App.tsx
+
+---
+
+### 9. Resumo dos Arquivos a Criar/Modificar
+
+| Arquivo | Acao | Descricao |
+|---------|------|-----------|
+| `src/pages/admin/Analytics.tsx` | Criar | Dashboard de analytics completo |
+| `src/components/admin/LeadsKanban.tsx` | Criar | Kanban de gestao de leads |
+| `src/components/admin/KanbanColumn.tsx` | Criar | Coluna do Kanban |
+| `src/components/admin/KanbanCard.tsx` | Criar | Card arrastavel do lead |
+| `src/App.tsx` | Modificar | Adicionar rota /admin/analytics |
+| `src/components/admin/AdminSidebar.tsx` | Modificar | Link para Kanban (se necessario) |
 

@@ -181,7 +181,6 @@ export default function Works() {
         isOpen={!!selectedVideo}
         onClose={handleCloseModal}
         videoId={selectedVideo?.videoId || ""}
-        title={selectedVideo?.title}
       />
     </Layout>
   );

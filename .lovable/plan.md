@@ -1,64 +1,85 @@
 
 
-## Plano: Redesenhar os Cards de Nicho
+## Plano: Vídeos com Autoplay e Controles Escondidos
 
-Atualizar o componente `NicheCard` para seguir o design da imagem de referência, com a imagem na parte superior e uma área de texto com fundo escuro sólido na parte inferior.
+Integrar o player de vídeo do YouTube na página Works para que os vídeos toquem automaticamente com visual limpo, sem controles visíveis.
 
-### Mudanças Visuais
+---
 
-**Layout Atual:**
-- Imagem preenche todo o card
-- Texto sobreposto na parte inferior com gradiente transparente
-- Difícil leitura em algumas imagens
+### Como Vai Funcionar
 
-**Novo Layout (conforme referência):**
-- Card dividido em duas partes:
-  - **Topo (~60%)**: Imagem com leve fade escuro na borda inferior
-  - **Base (~40%)**: Área sólida escura com borda arredondada para o texto
-- Título em fonte grande e dourada
-- Descrição em texto claro
-- Link "Ver mais" com seta dourada
+Quando o usuário clicar em um projeto no portfólio:
+1. Abre um modal/lightbox escuro com o vídeo em destaque
+2. O vídeo começa automaticamente (autoplay)
+3. Sem controles do YouTube visíveis (play, barra, logo)
+4. Visual limpo e cinematográfico
+5. Botão de fechar discreto no canto
 
-### Arquivos a Modificar
+---
 
-1. **`src/components/ui/NicheCard.tsx`**
-   - Reestruturar o layout do card para ter duas seções distintas
-   - Imagem na parte superior com `rounded-t-lg`
-   - Container de texto na parte inferior com fundo sólido `bg-card` ou similar
-   - Título com classe `text-gold` ou `text-gradient`
-   - Manter o efeito de zoom no hover da imagem
+### Mudanças Técnicas
 
-2. **`src/index.css`**
-   - Ajustar os estilos do `.niche-card` para o novo layout
-   - Atualizar o gradiente `::before` para ser mais sutil, apenas na transição entre imagem e texto
+**1. Criar componente de Modal de Vídeo**
 
-### Estrutura do Novo Card
+Arquivo: `src/components/ui/VideoModal.tsx`
+
+- Modal escuro fullscreen ou quase fullscreen
+- Usa o componente `EmbeddedVideo` já existente (que já tem os parâmetros de autoplay e controles escondidos)
+- Fecha ao clicar fora ou no botão X
+- Animação suave de entrada/saída
+
+**2. Atualizar página Works.tsx**
+
+- Adicionar estado para controlar qual vídeo está aberto
+- Ao clicar no card do projeto, abre o modal com o videoId correspondente
+- Integrar com o novo componente VideoModal
+
+---
+
+### Parâmetros do YouTube (já configurados)
+
+O componente `EmbeddedVideo` já usa estes parâmetros:
+
+| Parâmetro | Valor | Efeito |
+|-----------|-------|--------|
+| `autoplay` | 1 | Inicia automaticamente |
+| `mute` | 1 | Som desligado (necessário para autoplay) |
+| `loop` | 1 | Repete infinitamente |
+| `controls` | 0 | Esconde controles |
+| `showinfo` | 0 | Esconde título/canal |
+| `modestbranding` | 1 | Minimiza branding YouTube |
+| `rel` | 0 | Não mostra vídeos relacionados |
+| `disablekb` | 1 | Desabilita atalhos de teclado |
+| `fs` | 0 | Esconde botão fullscreen |
+
+---
+
+### Arquivos a Criar/Modificar
+
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `src/components/ui/VideoModal.tsx` | Criar | Modal para exibir vídeo em destaque |
+| `src/pages/Works.tsx` | Modificar | Integrar modal ao clicar nos projetos |
+
+---
+
+### Resultado Visual
 
 ```text
-┌─────────────────────────────┐
-│                             │
-│         IMAGEM              │
-│      (com zoom hover)       │
-│                             │
-│ ─────────fade escuro─────── │
-├─────────────────────────────┤
-│                             │
-│   CASAMENTO                 │  ← Título dourado
-│                             │
-│   Descrição do serviço      │  ← Texto branco/cinza
-│   em 2-3 linhas...          │
-│                             │
-│   Ver mais →                │  ← Link dourado
-│                             │
-└─────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                         [X]                                 │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │                                                     │   │
+│   │                                                     │   │
+│   │              VÍDEO YOUTUBE                          │   │
+│   │           (autoplay, sem controles)                 │   │
+│   │                                                     │   │
+│   │                                                     │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│                    Wedding Film - Ana & Pedro               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
-
-### Detalhes Técnicos
-
-- Altura total do card mantida: `h-80 md:h-96`
-- Proporção aproximada: 55% imagem / 45% texto
-- Fundo da área de texto: `bg-card` (7% black) ou `bg-background/95`
-- Bordas arredondadas: `rounded-lg` no card, `rounded-t-lg` na imagem
-- Efeito hover na imagem (zoom) permanece
-- Transição suave no link "Ver mais"
 

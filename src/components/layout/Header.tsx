@@ -47,11 +47,12 @@ export function Header() {
       <div className="container mx-auto px-4 lg:px-8">
         <nav className="flex items-center justify-between">
           {/* Logo */}
-          <Link
-            to="/"
-            className="relative z-10 font-display text-2xl md:text-3xl tracking-wider text-gradient"
-          >
-            BLACKBOY FILMS
+          <Link to="/" className="relative z-10">
+            <img 
+              src="/assets/logo-blackboy-films.svg" 
+              alt="Blackboy Films" 
+              className="h-8 md:h-10 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}

@@ -1,114 +1,89 @@
 
 
-## Plano: Video Dinamico nas Paginas de Nicho
+## Plano: Corrigir Visualizacao do Video nas Paginas de Nicho
 
-Integrar as paginas de nicho com o banco de dados `portfolio_items` para exibir videos em autoplay/loop e projetos recentes dinamicos.
+### Problema Atual
+
+O video esta sendo cortado e aparece "em pe" com uma area preta embaixo porque:
+- O container usa `aspect-[3/4]` (formato retrato/vertical)
+- A escala de 140% para esconder controles do YouTube amplia o video e corta as bordas
+- Videos 16:9 (1920x1080) sao forcados em containers verticais
+
+### Solucao
+
+Ajustar o componente `NicheVideoPlayer` e o container na `NichoPage` para:
+1. Manter o aspect ratio original do video (16:9)
+2. Remover a escala excessiva que corta o conteudo
+3. Usar uma abordagem mais sutil para esconder os controles
+4. Garantir melhor qualidade de video com parametros corretos
 
 ---
 
-### Mudancas Necessarias
+### Alteracoes Necessarias
 
-**Arquivo: `src/pages/NichoPage.tsx`**
+#### Arquivo: `src/components/ui/NicheVideoPlayer.tsx`
 
-#### 1. Secao "Incluido no Servico" - Video Unico com Autoplay
-
-**Situacao atual:**
-- Exibe 2 thumbnails estaticas do array `nichosData`
-- Usuario precisa clicar para ver o video
-
-**Nova implementacao:**
-- Buscar o projeto mais recente do nicho atual no Supabase
-- Ordenar por `created_at DESC` e limitar a 1 resultado
-- Exibir como video embeddado (nao thumbnail)
-- Configurar autoplay + muted + loop
-- Usar a tecnica de zoom (140%) para esconder controles do YouTube
-- Layout: um unico video ocupando a area ao inves de 2 cards
+**Remover a escala 140%** que corta o video e usar uma abordagem mais limpa:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│  INCLUIDO NO SERVICO                                        │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────┐   ┌─────────────────────────────┐  │
-│  │ ✓ Cobertura completa│   │                             │  │
-│  │ ✓ Filme principal   │   │   ┌───────────────────┐    │  │
-│  │ ✓ Teaser redes      │   │   │                   │    │  │
-│  │ ✓ Same-day edit     │   │   │   VIDEO AUTOPLAY  │    │  │
-│  │ ✓ Drone             │   │   │   (loop infinito) │    │  │
-│  │ ✓ Entrega 60 dias   │   │   │                   │    │  │
-│  │                     │   │   └───────────────────┘    │  │
-│  │ [Solicitar Orcam.] │   │                             │  │
-│  └─────────────────────┘   └─────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+ANTES (problema):
+- Container interno: inset-[-20%] w-[140%] h-[140%]
+- Transforma o video em 140% do tamanho e corta as bordas
+- Resultado: video cortado, visualizacao ruim
+
+DEPOIS (solucao):
+- Container simples sem escala excessiva
+- Usar parametros do YouTube para minimizar a UI
+- Manter o video em seu tamanho natural
+- Leve escala (~103-105%) apenas para esconder borda fina do player
 ```
 
-#### 2. Secao "Projetos Recentes" - Dados Dinamicos
+Mudancas tecnicas:
+- Remover `inset-[-20%]`, `w-[140%]`, `h-[140%]`
+- Usar `w-full h-full` com `object-fit: contain` via CSS
+- Manter autoplay, muted, loop
+- Adicionar parametro `vq=hd1080` para alta qualidade
 
-**Situacao atual:**
-- Exibe 3 projetos do array estatico `nichosData`
+#### Arquivo: `src/pages/NichoPage.tsx`
 
-**Nova implementacao:**
-- Buscar projetos publicados do nicho atual no Supabase
-- Filtrar: `is_published = true` AND `niche = nicho_atual`
-- Ordenar: `created_at DESC` (mais recentes primeiro)
-- Limitar: 3 projetos
-- Ao clicar, abrir o VideoModal existente com a URL do video
-
----
-
-### Codigo - Resumo das Alteracoes
+**Alterar o aspect ratio do container** de vertical para horizontal:
 
 ```text
-1. Adicionar imports:
-   - useQuery do @tanstack/react-query
-   - supabase client
-   - generateEmbedUrl, detectVideoType de videoUtils
-   - useState para controlar VideoModal
+ANTES:
+- <div className="aspect-[3/4]"> (retrato)
 
-2. Criar query para buscar o video mais recente do nicho:
-   SELECT * FROM portfolio_items
-   WHERE niche = $nicho AND is_published = true
-   ORDER BY created_at DESC
-   LIMIT 1
+DEPOIS:
+- <div className="aspect-video"> (16:9, equivalente a 1920x1080)
+```
 
-3. Criar query para buscar projetos recentes do nicho:
-   SELECT * FROM portfolio_items
-   WHERE niche = $nicho AND is_published = true
-   ORDER BY created_at DESC
-   LIMIT 3
+Isso garante que:
+- Videos horizontais (maioria) exibam corretamente
+- O layout se adapte ao formato natural do video
+- Nenhum corte ou distorcao
 
-4. Substituir a grid de 2 thumbnails por:
-   - Um unico iframe com o video embeddado
-   - Usar generateEmbedUrl com autoplay=true, loop=true
-   - Aplicar escala 140% para esconder UI do player
-   - Fallback para placeholder se nao houver video
+#### Arquivo: `src/lib/videoUtils.ts`
 
-5. Substituir data.projects por projectsFromDb:
-   - Mapear os dados do Supabase
-   - Adicionar onClick para abrir VideoModal
-   - Usar thumbnail_url do banco ou gerar automaticamente
+**Adicionar parametro de qualidade** no embed do YouTube:
+
+```text
+Adicionar ao generateEmbedUrl:
+- vq=hd1080 (forca qualidade 1080p)
+- hd=1 (ativa modo HD)
 ```
 
 ---
 
-### Mapeamento de Nichos
+### Padrao para Todas as Paginas de Nicho
 
-Os nichos no banco usam valores como "casamento", "eventos", etc. O parametro da URL `:nicho` ja corresponde a esses valores, entao o filtro funcionara diretamente.
+A mudanca no `NicheVideoPlayer.tsx` sera automaticamente aplicada a todas as paginas:
+- `/nicho/casamento`
+- `/nicho/eventos`
+- `/nicho/clinicas`
+- `/nicho/marcas`
+- `/nicho/food`
+- `/nicho/imobiliario`
 
----
-
-### Componente de Video Inline
-
-Criar um componente reutilizavel para exibir video embeddado com autoplay:
-
-```text
-<NicheVideoPlayer>
-  - Recebe video_url e video_type
-  - Gera embed URL com autoplay + loop
-  - Aplica escala 140% para esconder controles
-  - Exibe skeleton enquanto carrega
-  - Fallback para imagem se video nao disponivel
-</NicheVideoPlayer>
-```
+Como todas usam o mesmo componente, a correcao sera universal.
 
 ---
 
@@ -116,24 +91,19 @@ Criar um componente reutilizavel para exibir video embeddado com autoplay:
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/NichoPage.tsx` | Adicionar queries do Supabase, substituir dados estaticos por dinamicos, implementar video autoplay inline |
-| `src/components/ui/NicheVideoPlayer.tsx` (novo) | Componente de video embeddado com autoplay/loop para uso nas paginas de nicho |
+| `src/components/ui/NicheVideoPlayer.tsx` | Remover escala 140%, usar layout natural, manter autoplay/loop |
+| `src/pages/NichoPage.tsx` | Mudar aspect ratio de `3/4` para `video` (16:9) |
+| `src/lib/videoUtils.ts` | Adicionar parametros de qualidade HD ao embed |
 
 ---
 
-### Comportamento Esperado
+### Resultado Esperado
 
-1. Usuario acessa `/nicho/casamento`
-2. Na secao "Incluido no Servico", video mais recente do nicho "casamento" comeca a tocar automaticamente em loop
-3. Na secao "Projetos Recentes", aparecem os 3 projetos mais recentes do nicho
-4. Ao clicar em um projeto, abre o modal com o video
-5. Se nao houver projetos no banco, exibe mensagem ou placeholder
-
----
-
-### Nota sobre Performance
-
-- Videos do YouTube com autoplay sao mutados por padrao (exigencia dos navegadores)
-- O video fica em loop infinito ate o usuario sair da pagina
-- Lazy loading para evitar carregar todos os videos de uma vez
+1. Video exibido em proporcao correta 16:9 (1920x1080)
+2. Sem cortes ou distorcao
+3. Autoplay mantido (mutado)
+4. Loop infinito mantido
+5. Melhor qualidade de video (1080p quando disponivel)
+6. Interface limpa sem controles intrusivos do YouTube
+7. Padrao consistente em todas as paginas de nicho
 

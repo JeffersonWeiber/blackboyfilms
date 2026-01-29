@@ -14,9 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useUTMParams } from "@/hooks/useUTMParams";
 import { cn } from "@/lib/utils";
 import { Mail, MapPin, Phone, MessageCircle, CheckCircle, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const nichos = [
   { value: "casamento", label: "Casamento" },
@@ -42,6 +44,7 @@ const WHATSAPP_NUMBER = "5511999999999";
 export default function Contato() {
   const { ref, isVisible } = useScrollReveal<HTMLDivElement>();
   const { toast } = useToast();
+  const utmParams = useUTMParams();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -143,12 +146,24 @@ export default function Contato() {
 
     setIsLoading(true);
 
-    // Simulate API call - Replace with actual Supabase integration
+    // Format phone to E.164
+    const phoneE164 = "+55" + formData.telefone.replace(/\D/g, "");
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      // Track form submission
-      console.log("Event: submit_form_success", formData);
+      const { error } = await supabase.from("leads").insert({
+        name: formData.nome,
+        phone: formData.telefone,
+        phone_e164: phoneE164,
+        email: formData.email,
+        niche: formData.nicho,
+        city: formData.cidade || null,
+        message: formData.mensagem,
+        source: formData.comoConheceu || null,
+        consent: formData.consentimento,
+        ...utmParams,
+      });
+
+      if (error) throw error;
       
       setIsSubmitted(true);
       toast({
@@ -156,6 +171,7 @@ export default function Contato() {
         description: "Entraremos em contato em breve.",
       });
     } catch (error) {
+      console.error("Error submitting form:", error);
       toast({
         title: "Erro ao enviar",
         description: "Por favor, tente novamente.",

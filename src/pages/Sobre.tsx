@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Award, Users, Film, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-
+import equipeImage from "@/assets/equipe-blackboy.jpeg";
 const stats = [
   { number: "200+", label: "Projetos Entregues" },
   { number: "50+", label: "Marcas Atendidas" },
@@ -63,7 +63,7 @@ export default function Sobre() {
             <div className="relative">
               <div className="aspect-[4/5] rounded-lg overflow-hidden">
                 <img
-                  src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=800&q=80"
+                  src={equipeImage}
                   alt="Equipe Blackboy Films"
                   className="w-full h-full object-cover"
                 />

@@ -81,7 +81,7 @@ export function NicheModal({ open, onOpenChange }: NicheModalProps) {
         </DialogHeader>
 
         {/* Content */}
-        <ScrollArea className="max-h-[calc(90vh-160px)]">
+        <ScrollArea className="h-[calc(90vh-180px)]">
           <div className="p-6">
             {isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -112,14 +112,12 @@ export function NicheModal({ open, onOpenChange }: NicheModalProps) {
                     description={niche.description}
                     coverImage={niche.cover_image}
                     onClick={() => onOpenChange(false)}
-                    className={cn(
-                      "opacity-0 translate-y-2",
-                      isVisible && "animate-in fade-in slide-in-from-bottom-2",
-                      "motion-reduce:animate-none motion-reduce:opacity-100 motion-reduce:translate-y-0"
-                    )}
+                    className="motion-reduce:opacity-100"
                     style={{
-                      animationDelay: `${index * 50}ms`,
-                      animationFillMode: "forwards",
+                      opacity: isVisible ? 1 : 0,
+                      transform: isVisible ? 'translateY(0)' : 'translateY(8px)',
+                      transition: 'opacity 0.3s ease, transform 0.3s ease',
+                      transitionDelay: `${index * 50}ms`,
                     }}
                   />
                 ))}

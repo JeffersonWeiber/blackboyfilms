@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { TrackingScripts } from "@/components/tracking/TrackingScripts";
 import Index from "./pages/Index";
 import Works from "./pages/Works";
 import Processo from "./pages/Processo";
@@ -21,6 +22,7 @@ import LeadDetail from "./pages/admin/LeadDetail";
 import Portfolio from "./pages/admin/Portfolio";
 import PortfolioForm from "./pages/admin/PortfolioForm";
 import Analytics from "./pages/admin/Analytics";
+import Tracking from "./pages/admin/Tracking";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <TrackingScripts />
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Index />} />
@@ -97,6 +100,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/tracking"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Tracking />
                 </ProtectedRoute>
               }
             />

@@ -1,11 +1,10 @@
 import { Link } from "react-router-dom";
-import { Instagram, Youtube, Linkedin, Mail, MapPin } from "lucide-react";
+import { Instagram, Youtube, Mail, MapPin } from "lucide-react";
 import logoBlackboy from "@/assets/logo-blackboy-films.svg";
 
 const socialLinks = [
-  { href: "https://instagram.com/blackboyfilms", icon: Instagram, label: "Instagram" },
+  { href: "https://www.instagram.com/blackboyfilmss/", icon: Instagram, label: "Instagram" },
   { href: "https://youtube.com/@blackboyfilms", icon: Youtube, label: "YouTube" },
-  { href: "https://linkedin.com/company/blackboyfilms", icon: Linkedin, label: "LinkedIn" },
 ];
 
 const footerLinks = {
@@ -110,7 +109,7 @@ export function Footer() {
               </a>
               <div className="flex items-start gap-3 text-sm text-muted-foreground">
                 <MapPin className="w-4 h-4 mt-0.5" />
-                <span>São Paulo, SP - Brasil</span>
+                <span>Cascavel, PR - Brasil</span>
               </div>
             </div>
           </div>

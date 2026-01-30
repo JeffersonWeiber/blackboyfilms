@@ -23,6 +23,7 @@ import Portfolio from "./pages/admin/Portfolio";
 import PortfolioForm from "./pages/admin/PortfolioForm";
 import Analytics from "./pages/admin/Analytics";
 import Tracking from "./pages/admin/Tracking";
+import Config from "./pages/admin/Config";
 
 const queryClient = new QueryClient();
 
@@ -108,6 +109,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <Tracking />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/config"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Config />
                 </ProtectedRoute>
               }
             />

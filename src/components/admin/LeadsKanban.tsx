@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { KanbanColumn } from "./KanbanColumn";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { triggerWebhook } from "@/hooks/useWebhook";
 import {
   Select,
   SelectContent,
@@ -17,10 +18,21 @@ type Lead = {
   id: string;
   name: string;
   phone: string;
+  phone_e164: string | null;
   email: string;
   niche: string;
+  city: string | null;
+  message: string;
   created_at: string;
   status: string | null;
+  notes: string | null;
+  source_page: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  consent: boolean | null;
 };
 
 const COLUMNS = [
@@ -54,7 +66,7 @@ export function LeadsKanban() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, name, phone, email, niche, created_at, status")
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -63,17 +75,42 @@ export function LeadsKanban() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ leadId, status }: { leadId: string; status: string }) => {
-      const { error } = await supabase
+    mutationFn: async ({ leadId, status, previousStatus }: { leadId: string; status: string; previousStatus: string }) => {
+      const { data, error } = await supabase
         .from("leads")
         .update({ status })
-        .eq("id", leadId);
+        .eq("id", leadId)
+        .select()
+        .single();
 
       if (error) throw error;
+      return { lead: data as Lead, previousStatus };
     },
-    onSuccess: () => {
+    onSuccess: ({ lead, previousStatus }) => {
       queryClient.invalidateQueries({ queryKey: ["kanban-leads"] });
       toast.success("Status atualizado!");
+      
+      // Trigger webhook for status change
+      triggerWebhook("status_changed", {
+        id: lead.id,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        phone_e164: lead.phone_e164,
+        niche: lead.niche,
+        city: lead.city,
+        message: lead.message,
+        status: lead.status,
+        notes: lead.notes,
+        source_page: lead.source_page,
+        utm_source: lead.utm_source,
+        utm_medium: lead.utm_medium,
+        utm_campaign: lead.utm_campaign,
+        utm_content: lead.utm_content,
+        utm_term: lead.utm_term,
+        consent: lead.consent,
+        created_at: lead.created_at,
+      }, previousStatus);
     },
     onError: () => {
       toast.error("Erro ao atualizar status");
@@ -108,8 +145,9 @@ export function LeadsKanban() {
 
     if (draggedLeadId) {
       const lead = leads?.find((l) => l.id === draggedLeadId);
-      if (lead && (lead.status || "novo") !== status) {
-        updateStatusMutation.mutate({ leadId: draggedLeadId, status });
+      const previousStatus = lead?.status || "novo";
+      if (lead && previousStatus !== status) {
+        updateStatusMutation.mutate({ leadId: draggedLeadId, status, previousStatus });
       }
     }
     setDraggedLeadId(null);

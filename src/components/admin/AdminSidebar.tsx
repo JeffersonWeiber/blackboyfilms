@@ -14,6 +14,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import logoBlackboy from "@/assets/logo-blackboy-films.svg";
 
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard", exact: true },
@@ -75,13 +76,11 @@ export function AdminSidebar() {
           {/* Logo */}
           <div className="p-6 border-b border-border">
             <NavLink to="/admin" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
-              <div className="w-10 h-10 rounded-lg bg-gold/20 flex items-center justify-center">
-                <span className="font-display text-gold text-lg">BB</span>
-              </div>
-              <div>
-                <span className="font-display text-lg tracking-wider block">BLACKBOY</span>
-                <span className="text-xs text-muted-foreground">Admin Panel</span>
-              </div>
+              <img 
+                src={logoBlackboy} 
+                alt="Blackboy Films" 
+                className="h-10 w-auto"
+              />
             </NavLink>
           </div>
 

@@ -80,6 +80,48 @@ export type Database = {
         }
         Relationships: []
       }
+      niches: {
+        Row: {
+          cover_image: string | null
+          created_at: string
+          description: string
+          display_order: number
+          id: string
+          is_active: boolean
+          is_featured: boolean
+          name: string
+          slug: string
+          updated_at: string
+          whatsapp_template: string | null
+        }
+        Insert: {
+          cover_image?: string | null
+          created_at?: string
+          description: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_featured?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+          whatsapp_template?: string | null
+        }
+        Update: {
+          cover_image?: string | null
+          created_at?: string
+          description?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_featured?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+          whatsapp_template?: string | null
+        }
+        Relationships: []
+      }
       portfolio_items: {
         Row: {
           created_at: string

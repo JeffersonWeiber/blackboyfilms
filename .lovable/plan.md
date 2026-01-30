@@ -1,206 +1,276 @@
 
 
-## Plano: Atualizar Imagem do Hero + Webhook Server-Side
+## Plano: Grid de Nichos Dinamico + Modal "Ver todas as categorias"
 
-### 1. Trocar Imagem do Hero
+### 1. Visao Geral
 
-**Acao**: Substituir a imagem de fundo da Home pela nova imagem fornecida.
-
-| Item | Detalhes |
-|------|----------|
-| Imagem atual | `src/assets/hero-background.png` |
-| Nova imagem | `user-uploads://Inicio_2.png` |
-| Componente | `src/components/home/HeroSection.tsx` |
-
-O arquivo sera copiado para `src/assets/hero-background.png`, substituindo o atual.
+Transformar a secao "Especialistas em cada nicho" de estatica para dinamica, com:
+- Grid de 6 nichos principais (featured) na Home
+- Botao "Ver todas as categorias" que abre modal com todos os nichos
+- CRUD completo de nichos no Admin
+- Seed inicial com 17 categorias
 
 ---
 
-### 2. Problema do Webhook (Atual)
+### 2. Estrutura do Banco de Dados
 
-O envio atual e feito **client-side** com `mode: "no-cors"`:
-
-```text
-fetch(url, {
-  method: "POST",
-  mode: "no-cors",  // <-- PROBLEMA!
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(payload)
-});
-```
-
-**Consequencias do no-cors:**
-- Browser ignora os headers personalizados
-- `Content-Type` vira `text/plain`
-- n8n recebe o payload como string dentro de `body`
-- Impossivel enviar headers de autenticacao
-
----
-
-### 3. Solucao: Edge Function como Proxy
-
-Criar uma **Edge Function** no Supabase que:
-
-1. Recebe os dados do lead do frontend
-2. Busca a URL do webhook no banco
-3. Faz o POST **server-to-server** com headers corretos
-4. Retorna status de sucesso/erro
-
-```text
-Frontend -> Edge Function -> n8n/Zapier/Make
-           (server-side)
-
-Headers enviados pela Edge Function:
-- Content-Type: application/json
-- x-webhook-secret: <secret> (opcional, para seguranca)
-```
-
----
-
-### 4. Arquitetura Tecnica
-
-#### 4.1 Edge Function: `webhook-proxy`
-
-```text
-supabase/functions/webhook-proxy/index.ts
-```
-
-**Funcionalidades:**
-- Recebe: `{ event, data, previous_status? }`
-- Busca config do banco (`site_settings.webhook_config`)
-- Valida se webhook esta ativo e se o evento deve ser enviado
-- Envia POST para a URL configurada com:
-  - `Content-Type: application/json`
-  - `x-webhook-secret` (se configurado)
-- Retorna resposta do webhook
-
-**Payload enviado para n8n:**
-```json
-{
-  "event": "lead_created",
-  "timestamp": "2026-01-30T12:00:00.000Z",
-  "source": "blackboy_films",
-  "data": {
-    "id": "uuid",
-    "name": "Nome Completo",
-    "email": "email@exemplo.com",
-    "phone": "(11) 99999-9999",
-    "phone_e164": "+5511999999999",
-    "niche": "casamento",
-    "city": "Cascavel",
-    "message": "Mensagem...",
-    "status": "novo",
-    "source_page": "/contato",
-    "utm_source": "instagram",
-    "consent": true,
-    "created_at": "2026-01-30T12:00:00.000Z"
-  }
-}
-```
-
-#### 4.2 Atualizacao do Hook `useWebhook.ts`
-
-Modificar para chamar a Edge Function ao inves de fazer fetch direto:
-
-```text
-// Antes (client-side, no-cors)
-fetch(config.url, { mode: "no-cors", ... });
-
-// Depois (via Edge Function)
-supabase.functions.invoke("webhook-proxy", {
-  body: { event, data, previous_status }
-});
-```
-
-#### 4.3 Opcao de Secret para Seguranca
-
-Adicionar campo opcional no Admin (`/admin/config`) para configurar um secret:
-
-| Campo | Descricao |
-|-------|-----------|
-| `webhook_secret` | Token secreto enviado no header `x-webhook-secret` |
-
-O n8n pode validar este header para garantir que a requisicao veio do seu servidor.
-
----
-
-### 5. Configuracao do Supabase
-
-Atualizar `supabase/config.toml`:
-
-```toml
-[functions.webhook-proxy]
-verify_jwt = false
-```
-
-O JWT nao sera verificado para permitir chamadas publicas (o formulario de contato e publico).
-
----
-
-### 6. Atualizacao da Pagina Admin/Config
-
-Adicionar campo para o webhook secret:
+Criar tabela `niches` com os seguintes campos:
 
 | Campo | Tipo | Descricao |
 |-------|------|-----------|
-| `webhook_secret` | Input (senha) | Token para validacao no n8n |
+| id | uuid | Chave primaria |
+| name | text | Nome exibido (ex: "Casamento") |
+| slug | text | URL slug (ex: "casamento") |
+| description | text | Descricao curta |
+| cover_image | text | URL da imagem de capa |
+| whatsapp_template | text | Mensagem padrao para WhatsApp |
+| is_featured | boolean | Exibir no grid principal da Home |
+| is_active | boolean | Se esta ativo no site |
+| display_order | integer | Ordem de exibicao |
+| created_at | timestamp | Data de criacao |
+| updated_at | timestamp | Data de atualizacao |
+
+**RLS Policies:**
+- SELECT: Publico (para nichos ativos)
+- INSERT/UPDATE/DELETE: Admin + Editor
+
+**Seed inicial:** 17 nichos conforme lista fornecida
 
 ---
 
-### 7. Teste no Admin
+### 3. Atualizacao da Home (NichosSection)
 
-Atualizar o botao "Testar Webhook" para usar a Edge Function tambem, garantindo que o teste simule o fluxo real.
+#### 3.1 Grid Principal
+
+| Aspecto | Detalhes |
+|---------|----------|
+| Fonte de dados | Buscar nichos com `is_featured = true` e `is_active = true` |
+| Ordenacao | Por `display_order` ascendente |
+| Layout desktop | 3 colunas x 2 linhas |
+| Layout tablet | 2 colunas x 3 linhas |
+| Layout mobile | 1 coluna x 6 linhas |
+
+#### 3.2 CTA "Ver todas as categorias"
+
+- Botao centralizado abaixo do grid
+- Estilo: outline com bordas douradas
+- Ao clicar: abre modal com todas as categorias
 
 ---
 
-### 8. Resumo dos Arquivos
+### 4. Modal "Todas as categorias"
 
-| Arquivo | Acao |
-|---------|------|
-| `src/assets/hero-background.png` | Substituir pela nova imagem |
-| `supabase/functions/webhook-proxy/index.ts` | Criar (Edge Function) |
-| `supabase/config.toml` | Adicionar config da function |
-| `src/hooks/useWebhook.ts` | Modificar para usar Edge Function |
-| `src/pages/admin/Config.tsx` | Adicionar campo de secret |
-
----
-
-### 9. Fluxo Apos Implementacao
+#### 4.1 Estrutura do Modal
 
 ```text
-1. Lead envia formulario
-2. Contato.tsx salva no banco + chama triggerWebhook()
-3. useWebhook.ts chama Edge Function webhook-proxy
-4. Edge Function busca config no banco
-5. Edge Function faz POST server-side para n8n
-6. n8n recebe JSON parseado corretamente:
-   - Content-Type: application/json
-   - Campos acessiveis: data.name, data.phone, etc.
++------------------------------------------+
+|  [X]                                     |
+|                                          |
+|      TODAS AS CATEGORIAS                 |
+|                                          |
+|  [Buscar categoria...            ]       |
+|                                          |
+|  +--------+  +--------+  +--------+      |
+|  | Nicho  |  | Nicho  |  | Nicho  |      |
+|  | Card   |  | Card   |  | Card   |      |
+|  +--------+  +--------+  +--------+      |
+|                                          |
+|  +--------+  +--------+  +--------+      |
+|  | Nicho  |  | Nicho  |  | Nicho  |      |
+|  | Card   |  | Card   |  | Card   |      |
+|  +--------+  +--------+  +--------+      |
+|                ...                       |
++------------------------------------------+
 ```
+
+#### 4.2 Comportamento
+
+| Recurso | Implementacao |
+|---------|---------------|
+| Animacao de entrada | fade + slide-up (respeita prefers-reduced-motion) |
+| Fechar | Clique no X, clique fora, tecla ESC |
+| Busca | Filtro em tempo real por nome |
+| Grid | 3 colunas desktop, 2 tablet, 1 mobile |
+| Scroll | ScrollArea interna com altura maxima |
+
+#### 4.3 Card do Modal (versao compacta)
+
+Cada card tera:
+- Imagem de capa (aspect-ratio 16:9)
+- Titulo do nicho
+- Descricao curta (line-clamp-2)
+- Link "Ver mais" com arrow
+
+Hover: zoom suave na imagem + border glow
 
 ---
 
-### 10. Resultado Esperado no n8n
+### 5. Pagina do Admin: Nichos
 
-**Antes (problema):**
-```json
-{
-  "body": "{\"event\":\"lead_created\",\"data\":{...}}"
-}
+#### 5.1 Lista de Nichos (/admin/nichos)
+
+**Interface similar a Portfolio:**
+- Tabela com colunas: Imagem, Nome, Slug, Featured, Ativo, Ordem, Acoes
+- Filtros: Todos / Featured / Ativos
+- Busca por nome
+- Acoes: Editar, Toggle Featured, Toggle Ativo, Excluir
+
+#### 5.2 Formulario de Nicho (/admin/nichos/new e /admin/nichos/:id/edit)
+
+**Campos do formulario:**
+
+| Campo | Tipo | Obrigatorio |
+|-------|------|-------------|
+| Nome | Input text | Sim |
+| Slug | Input text (auto-gerado) | Sim |
+| Descricao | Textarea | Sim |
+| Imagem de capa | Input URL | Nao |
+| Template WhatsApp | Textarea | Nao |
+| Featured | Checkbox | Nao |
+| Ativo | Checkbox | Nao |
+| Ordem | Input number | Nao |
+
+**Auto-geracao de slug:** Ao digitar o nome, o slug e gerado automaticamente (lowercase, sem acentos, espacos viram hifens)
+
+---
+
+### 6. Atualizacao da NichoPage
+
+A pagina `/nicho/:slug` precisa buscar dados dinamicamente:
+
+1. Buscar nicho pelo slug no banco
+2. Se nao encontrar, mostrar 404
+3. Usar dados do nicho (nome, descricao, imagem) ao inves de hardcoded
+4. Manter lista de beneficios hardcoded inicialmente (pode ser expandido depois)
+
+---
+
+### 7. Componentes a Criar
+
+| Componente | Local | Descricao |
+|------------|-------|-----------|
+| NicheModal | src/components/ui/NicheModal.tsx | Modal com grid de todas as categorias |
+| NicheCardCompact | src/components/ui/NicheCardCompact.tsx | Card menor para uso no modal |
+
+---
+
+### 8. Paginas a Criar
+
+| Pagina | Rota | Descricao |
+|--------|------|-----------|
+| NichesList | /admin/nichos | Lista de nichos |
+| NichesForm | /admin/nichos/new | Criar nicho |
+| NichesForm | /admin/nichos/:id/edit | Editar nicho |
+
+---
+
+### 9. Arquivos a Modificar
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| src/components/home/NichosSection.tsx | Buscar nichos do banco, adicionar botao + modal |
+| src/pages/NichoPage.tsx | Buscar dados do nicho dinamicamente |
+| src/App.tsx | Adicionar rotas de admin para nichos |
+| src/components/admin/AdminSidebar.tsx | Adicionar link para Nichos |
+| src/pages/admin/PortfolioForm.tsx | Buscar nichos do banco para select |
+| src/pages/admin/Portfolio.tsx | Buscar nichos do banco para filtro |
+
+---
+
+### 10. Seed de Nichos
+
+Inserir os 17 nichos no banco:
+
+| Nome | Slug | Featured | Order |
+|------|------|----------|-------|
+| Casamento | casamento | Sim | 1 |
+| Eventos | eventos | Sim | 2 |
+| Clinicas | clinicas | Sim | 3 |
+| Marcas & Ads | marcas-e-ads | Sim | 4 |
+| Food | food | Sim | 5 |
+| Imobiliario | imobiliario | Sim | 6 |
+| 15 anos | 15-anos | Nao | 7 |
+| Aniversarios | aniversarios | Nao | 8 |
+| Empresarial (Institucional) | empresarial | Nao | 9 |
+| Redes Sociais | redes-sociais | Nao | 10 |
+| Para o seu Marketing | marketing | Nao | 11 |
+| Automotivo | automotivo | Nao | 12 |
+| Estetica (Beleza) | estetica | Nao | 13 |
+| Formato Vertical | formato-vertical | Nao | 14 |
+| Producao de Cursos | producao-de-cursos | Nao | 15 |
+| YouTube | youtube | Nao | 16 |
+| Clip Musical | clip-musical | Nao | 17 |
+
+---
+
+### 11. Animacoes
+
+#### Modal
+- Entrada: fade (overlay) + slide-up + scale (conteudo)
+- Saida: fade + slide-down + scale-out
+- Duracao: 300ms
+- Timing: cubic-bezier(0.16, 1, 0.3, 1)
+
+#### Cards no Modal
+- Stagger animation nos cards (delay incremental)
+- Hover: zoom suave na imagem (scale 1.05)
+
+#### Reduced Motion
+- Todas as animacoes respeitam `prefers-reduced-motion`
+- Se ativado, transicoes instantaneas
+
+---
+
+### 12. Ordem de Implementacao
+
+1. **Banco de dados**: Criar tabela `niches` com RLS + seed dos 17 nichos
+2. **Hook useNiches**: Criar hook para buscar nichos (featured, all, by slug)
+3. **NicheCardCompact**: Componente de card compacto para modal
+4. **NicheModal**: Modal com grid e busca
+5. **NichosSection**: Atualizar para buscar do banco + integrar modal
+6. **NichoPage**: Buscar dados do nicho dinamicamente
+7. **Admin - NichesList**: Pagina de listagem
+8. **Admin - NichesForm**: Formulario de criar/editar
+9. **Rotas + Sidebar**: Integrar no sistema de rotas
+10. **Portfolio**: Atualizar selects para usar nichos dinamicos
+
+---
+
+### 13. Resumo Visual
+
+**Home - Secao Nichos:**
+```text
+         NOSSOS SERVICOS
+    ESPECIALISTAS EM CADA NICHO
+
++--------+  +--------+  +--------+
+|Casament|  |Eventos |  |Clinicas|
++--------+  +--------+  +--------+
+
++--------+  +--------+  +--------+
+|Marcas  |  |  Food  |  |Imobil. |
++--------+  +--------+  +--------+
+
+      [Ver todas as categorias]
 ```
 
-**Depois (correto):**
-```json
-{
-  "event": "lead_created",
-  "timestamp": "2026-01-30T12:00:00.000Z",
-  "source": "blackboy_films",
-  "data": {
-    "name": "Nome Completo",
-    "phone": "(11) 99999-9999",
-    "email": "email@exemplo.com",
-    ...
-  }
-}
+**Modal aberto:**
+```text
++------------------------------------------+
+|           TODAS AS CATEGORIAS        [X] |
+|  +------------------------------------+  |
+|  | Buscar categoria...               |  |
+|  +------------------------------------+  |
+|                                          |
+|  +------+  +------+  +------+            |
+|  |Casa- |  |Even- |  |Clini-|            |
+|  |mento |  |tos   |  |cas   |            |
+|  +------+  +------+  +------+            |
+|  +------+  +------+  +------+            |
+|  |Marcas|  |Food  |  |Imobi-|            |
+|  |& Ads |  |      |  |liario|            |
+|  +------+  +------+  +------+            |
+|           ... mais nichos ...            |
++------------------------------------------+
 ```
 

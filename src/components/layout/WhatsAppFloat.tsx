@@ -1,14 +1,15 @@
 import { MessageCircle } from "lucide-react";
+import { useTracking } from "@/hooks/useTracking";
 
 const WHATSAPP_NUMBER = "5511999999999"; // Replace with actual number
 const WHATSAPP_MESSAGE = "Olá! Gostaria de saber mais sobre os serviços da Blackboy Films.";
 
 export function WhatsAppFloat() {
+  const { trackEvent } = useTracking();
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
   const handleClick = () => {
-    // Track click_whatsapp_floating event
-    console.log("Event: click_whatsapp_floating");
+    trackEvent("click_whatsapp_floating", { page: window.location.pathname });
   };
 
   return (

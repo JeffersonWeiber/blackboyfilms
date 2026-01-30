@@ -10,7 +10,8 @@ import {
   Menu,
   Film,
   Webhook,
-  Layers
+  Layers,
+  Building2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/admin/leads", icon: Users, label: "Leads" },
   { to: "/admin/portfolio", icon: Film, label: "Portfólio" },
   { to: "/admin/nichos", icon: Layers, label: "Nichos" },
+  { to: "/admin/clients", icon: Building2, label: "Clientes" },
   { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
   { to: "/admin/tracking", icon: Settings, label: "Tracking", adminOnly: true },
   { to: "/admin/config", icon: Webhook, label: "Config", adminOnly: true },

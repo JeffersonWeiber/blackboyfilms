@@ -1,177 +1,271 @@
 
 
-## Plano: Ajustar Hero para Layout com Logo Centralizada
+## Plano: Upload de Thumbnail Customizada no Portfolio
 
-### 1. Visao Geral das Mudancas
+### 1. Visao Geral
 
-| Componente | Estado Atual | Estado Desejado |
-|------------|--------------|-----------------|
-| Header (logo) | Logo completa "BLACKBOY FILMS" | Apenas icone "B" (favicon) |
-| Hero | Titulo "HISTORIAS QUE INSPIRAM" | Logo grande centralizada |
-| Hero texto | "Producao Audiovisual Premium" acima do titulo | Abaixo da logo |
+Trocar o campo de URL por um sistema de upload de arquivo para thumbnails de projetos do portfolio, igual ao sistema de upload de logos de clientes.
 
----
-
-### 2. Mudancas no Header
-
-**Arquivo:** `src/components/layout/Header.tsx`
-
-Trocar a logo completa pelo icone (favicon):
-
-| Antes | Depois |
-|-------|--------|
-| `logo-blackboy-films.svg` (logo completa) | Novo arquivo `logo-icon.svg` (apenas o "B") |
-| Altura: `h-8 md:h-10` | Altura: `h-8 md:h-10` (mantida) |
-
-O icone "B" ja existe em `public/favicon.svg`, mas precisamos copia-lo para `src/assets/logo-icon.svg` para usar como import ES6.
+| Item | Estado Atual | Estado Desejado |
+|------|--------------|-----------------|
+| Campo thumbnail | Input de URL | Upload de arquivo (JPG/PNG/WebP) |
+| Armazenamento | URL externa | Supabase Storage |
+| Preview | Apenas URL | Preview visual do arquivo |
+| Comportamento | URL manual | Upload + fallback automatico |
 
 ---
 
-### 3. Mudancas no Hero
+### 2. Banco de Dados - Novo Bucket
 
-**Arquivo:** `src/components/home/HeroSection.tsx`
+Criar um novo bucket `portfolio-thumbnails` para armazenar as thumbnails customizadas:
 
-**Nova estrutura (de cima para baixo):**
+| Configuracao | Valor |
+|--------------|-------|
+| Nome | portfolio-thumbnails |
+| Publico | Sim |
+| Tipos | image/jpeg, image/png, image/webp |
+| Tamanho max | 5MB (thumbnails de alta qualidade) |
+
+**Politicas RLS do bucket:**
+- SELECT: publico (para exibir no site)
+- INSERT/UPDATE: admin + editor
+- DELETE: admin + editor
+
+---
+
+### 3. Novos Hooks - usePortfolioThumbnail
+
+Criar hooks para upload e delete de thumbnails:
+
+```typescript
+// src/hooks/usePortfolio.ts (novo arquivo)
+
+export function useUploadPortfolioThumbnail() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `thumbnails/${fileName}`;
+
+      await supabase.storage.from("portfolio-thumbnails").upload(filePath, file);
+      const { data } = supabase.storage.from("portfolio-thumbnails").getPublicUrl(filePath);
+      return data.publicUrl;
+    },
+  });
+}
+
+export function useDeletePortfolioThumbnail() {
+  return useMutation({
+    mutationFn: async (thumbnailUrl: string) => {
+      // Extrair path da URL e deletar
+    },
+  });
+}
+```
+
+---
+
+### 4. Mudancas no PortfolioForm
+
+#### 4.1 Novo Layout do Campo Thumbnail
 
 ```text
 +--------------------------------------------------+
+|  Thumbnail Customizada                           |
++--------------------------------------------------+
+|  +----------------+  +------------------------+  |
+|  |                |  | [Upload] Escolher      |  |
+|  |  [Preview      |  |         arquivo        |  |
+|  |   da imagem]   |  |                        |  |
+|  |       [X]      |  | JPG, PNG ou WebP.      |  |
+|  +----------------+  | Max 5MB.               |  |
+|                      +------------------------+  |
 |                                                  |
-|              [LOGO GRANDE CENTRALIZADA]          |
-|                 BLACKBOY FILMS                   |
-|                                                  |
-|         PRODUCAO AUDIOVISUAL PREMIUM             |
-|                                                  |
-|   Transformamos ideias em experiencias...        |
-|                                                  |
-|    [Receber Proposta]   [Ver Portfolio]          |
-|                                                  |
+|  Deixe vazio para usar a thumbnail do video     |
 +--------------------------------------------------+
 ```
 
-**Alteracoes especificas:**
+#### 4.2 Estados a Adicionar
 
-| Elemento | Mudanca |
-|----------|---------|
-| Logo grande | Adicionar `<img>` da logo completa no topo, centralizada |
-| Tamanho logo | Desktop: `max-w-md` (~400px), Mobile: `max-w-xs` (~280px) |
-| Titulo antigo | Remover "HISTORIAS QUE INSPIRAM" |
-| Subtitulo gold | Mover "PRODUCAO AUDIOVISUAL PREMIUM" para baixo da logo |
-| Descricao | Manter como esta |
-| Botoes | Manter como estao |
+```typescript
+const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+const [existingThumbnailUrl, setExistingThumbnailUrl] = useState<string | null>(null);
+```
+
+#### 4.3 Handler de Arquivo
+
+```typescript
+const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  // Validar tipo
+  const validTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!validTypes.includes(file.type)) {
+    toast.error("Formato invalido. Use JPG, PNG ou WebP");
+    return;
+  }
+
+  // Validar tamanho (5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error("Arquivo muito grande. Maximo 5MB");
+    return;
+  }
+
+  setThumbnailFile(file);
+  setThumbnailPreview(URL.createObjectURL(file));
+};
+```
+
+#### 4.4 Logica de Submit Atualizada
+
+```typescript
+const onSubmit = async (values: FormValues) => {
+  let thumbnailUrl = existingThumbnailUrl;
+
+  // Upload nova thumbnail se selecionada
+  if (thumbnailFile) {
+    // Deletar antiga se existir
+    if (existingThumbnailUrl?.includes("portfolio-thumbnails")) {
+      await deleteThumbnail.mutateAsync(existingThumbnailUrl);
+    }
+    thumbnailUrl = await uploadThumbnail.mutateAsync(thumbnailFile);
+  }
+
+  // Se nao tem thumbnail customizada, usa a do video
+  const finalThumbnail = thumbnailUrl || generateThumbnailUrl(values.video_url) || null;
+
+  // ... resto do save
+};
+```
 
 ---
 
-### 4. Arquivos a Criar
+### 5. Arquivos a Criar
 
 | Arquivo | Descricao |
 |---------|-----------|
-| `src/assets/logo-icon.svg` | Copia do favicon para usar no header |
+| `src/hooks/usePortfolio.ts` | Hooks de upload/delete de thumbnails |
+| Migracao SQL | Criar bucket + politicas RLS |
 
 ---
 
-### 5. Arquivos a Modificar
+### 6. Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/layout/Header.tsx` | Trocar import da logo pela logo-icon |
-| `src/components/home/HeroSection.tsx` | Adicionar logo grande + reorganizar conteudo |
+| `src/pages/admin/PortfolioForm.tsx` | Trocar input URL por upload de arquivo |
 
 ---
 
-### 6. Codigo - Header
-
-```tsx
-// Antes
-import logoBlackboy from "@/assets/logo-blackboy-films.svg";
-
-// Depois  
-import logoIcon from "@/assets/logo-icon.svg";
-
-// No JSX
-<img 
-  src={logoIcon} 
-  alt="Blackboy Films" 
-  className="h-8 md:h-10 w-auto"
-/>
-```
-
----
-
-### 7. Codigo - HeroSection
-
-```tsx
-import logoBlackboy from "@/assets/logo-blackboy-films.svg";
-
-// Nova estrutura do conteudo:
-<div className={cn("reveal", isVisible && "visible")}>
-  {/* Logo Grande Centralizada */}
-  <img
-    src={logoBlackboy}
-    alt="Blackboy Films"
-    className="mx-auto mb-8 w-64 md:w-80 lg:w-96 h-auto"
-  />
-  
-  {/* Subtitulo */}
-  <span className="inline-block text-gold text-sm md:text-base font-medium tracking-[0.3em] uppercase mb-6">
-    Producao Audiovisual Premium
-  </span>
-  
-  {/* Descricao */}
-  <p className="max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
-    Transformamos ideias em experiencias cinematograficas inesqueciveis. 
-    Do conceito a entrega, cada frame e pensado para impactar.
-  </p>
-
-  {/* Botoes - mantidos */}
-</div>
-```
-
----
-
-### 8. Responsividade
-
-| Breakpoint | Logo Hero | Logo Header |
-|------------|-----------|-------------|
-| Mobile (<640px) | `w-64` (256px) | `h-8` (32px) |
-| Tablet (md) | `w-80` (320px) | `h-10` (40px) |
-| Desktop (lg+) | `w-96` (384px) | `h-10` (40px) |
-
----
-
-### 9. Resumo Visual
-
-**Header (depois):**
+### 7. Fluxo de Upload
 
 ```text
-[B icon]    HOME  WORKS  PROCESSO  SOBRE  CONTATO    [Fale Conosco]
+[Usuario clica "Escolher arquivo"]
+         |
+         v
+[Seleciona JPG/PNG/WebP]
+         |
+         v
+[Validar tipo + tamanho]
+         |
+   +-----+-----+
+   |           |
+ Invalido    Valido
+   |           |
+   v           v
+[Toast erro] [Preview local]
+                |
+                v
+         [Clique Salvar]
+                |
+                v
+   [Upload para portfolio-thumbnails]
+                |
+                v
+   [Retorna URL publica]
+                |
+                v
+   [Salva em portfolio_items.thumbnail_url]
 ```
 
-**Hero (depois):**
+---
+
+### 8. Comportamento Inteligente
+
+| Cenario | Resultado |
+|---------|-----------|
+| Upload de arquivo | Usa thumbnail customizada |
+| Nenhum upload | Usa thumbnail automatica do video (YouTube/Drive) |
+| Remover thumbnail existente | Volta a usar thumbnail do video |
+| Editar projeto com thumbnail | Mostra preview da existente |
+
+---
+
+### 9. Migracao SQL
+
+```sql
+-- Criar bucket para thumbnails do portfolio
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('portfolio-thumbnails', 'portfolio-thumbnails', true);
+
+-- Politica SELECT publica
+CREATE POLICY "Public can view portfolio thumbnails"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'portfolio-thumbnails');
+
+-- Politica INSERT para admin/editor
+CREATE POLICY "Admin and editor can upload portfolio thumbnails"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'portfolio-thumbnails' 
+  AND (
+    has_role(auth.uid(), 'admin'::app_role) 
+    OR has_role(auth.uid(), 'editor'::app_role)
+  )
+);
+
+-- Politica DELETE para admin/editor
+CREATE POLICY "Admin and editor can delete portfolio thumbnails"
+ON storage.objects FOR DELETE
+USING (
+  bucket_id = 'portfolio-thumbnails' 
+  AND (
+    has_role(auth.uid(), 'admin'::app_role) 
+    OR has_role(auth.uid(), 'editor'::app_role)
+  )
+);
+```
+
+---
+
+### 10. Interface Visual Final
 
 ```text
 +--------------------------------------------------+
+|  Thumbnail Customizada                           |
++--------------------------------------------------+
 |                                                  |
-|              FILMS                               |
-|           [>] BLACK                              |
-|               BOY                                |
+|  +----------------+  +------------------------+  |
+|  |                |  |                        |  |
+|  |    [Imagem     |  |   [Upload] Escolher    |  |
+|  |   thumbnail]   |  |          arquivo       |  |
+|  |                |  |                        |  |
+|  |      [X]       |  |  JPG, PNG ou WebP.     |  |
+|  |                |  |  Maximo 5MB.           |  |
+|  +----------------+  +------------------------+  |
 |                                                  |
-|         PRODUCAO AUDIOVISUAL PREMIUM             |
-|                                                  |
-|   Transformamos ideias em experiencias           |
-|   cinematograficas inesqueciveis...              |
-|                                                  |
-|    [Receber Proposta]   [> Ver Portfolio]        |
-|                                                  |
-|                   v (scroll)                     |
+|  Deixe vazio para usar a thumbnail do video     |
 +--------------------------------------------------+
 ```
 
 ---
 
-### 10. Ordem de Implementacao
+### 11. Ordem de Implementacao
 
-1. Criar `src/assets/logo-icon.svg` (copiar do favicon)
-2. Atualizar `Header.tsx` para usar o icone
-3. Atualizar `HeroSection.tsx` com logo grande centralizada
-4. Testar responsividade em mobile/tablet/desktop
+1. **Migracao**: Criar bucket `portfolio-thumbnails` + politicas RLS
+2. **Hooks**: Criar `usePortfolio.ts` com upload/delete
+3. **Form**: Atualizar `PortfolioForm.tsx` com novo campo de upload
+4. **Testar**: Verificar upload, preview e fallback automatico
 

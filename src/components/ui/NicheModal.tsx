@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NicheCardCompact } from "@/components/ui/NicheCardCompact";
-import { useActiveNiches, Niche } from "@/hooks/useNiches";
+import { useActiveNiches } from "@/hooks/useNiches";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -18,13 +18,11 @@ export function NicheModal({ open, onOpenChange }: NicheModalProps) {
   const { data: niches, isLoading } = useActiveNiches();
   const [isVisible, setIsVisible] = useState(false);
 
-  // Reset search and visibility when modal closes
   useEffect(() => {
     if (!open) {
       setSearch("");
       setIsVisible(false);
     } else {
-      // Delay for stagger animation
       const timer = setTimeout(() => setIsVisible(true), 100);
       return () => clearTimeout(timer);
     }
@@ -54,21 +52,11 @@ export function NicheModal({ open, onOpenChange }: NicheModalProps) {
           "motion-reduce:animate-none"
         )}
       >
-        {/* Header */}
         <DialogHeader className="p-6 pb-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="font-display text-2xl tracking-wide">
-              TODAS AS CATEGORIAS
-            </DialogTitle>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="p-2 rounded-full hover:bg-muted transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <DialogTitle className="font-display text-2xl tracking-wide">
+            TODAS AS CATEGORIAS
+          </DialogTitle>
 
-          {/* Search */}
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -80,7 +68,6 @@ export function NicheModal({ open, onOpenChange }: NicheModalProps) {
           </div>
         </DialogHeader>
 
-        {/* Content */}
         <ScrollArea className="h-[calc(90vh-180px)]">
           <div className="p-6">
             {isLoading ? (

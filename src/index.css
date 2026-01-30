@@ -234,6 +234,20 @@
     @apply w-20 h-[2px] mx-auto;
     background: linear-gradient(90deg, transparent, hsl(var(--gold)), transparent);
   }
+
+  /* Marquee animation for clients section */
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .marquee-track {
+    animation: marquee 40s linear infinite;
+  }
+
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
 }
 
 /* Reduced motion support */
@@ -243,7 +257,8 @@
   .niche-image,
   .niche-card::before,
   .gold-underline::after,
-  .btn-glow::before {
+  .btn-glow::before,
+  .marquee-track {
     transition: none !important;
     animation: none !important;
   }
@@ -251,5 +266,11 @@
   .reveal {
     opacity: 1;
     transform: none;
+  }
+
+  .marquee-track {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
   }
 }

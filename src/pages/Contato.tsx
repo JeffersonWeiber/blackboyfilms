@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { Mail, MapPin, Phone, MessageCircle, CheckCircle, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { triggerWebhook } from "@/hooks/useWebhook";
 
 const nichos = [
   { value: "casamento", label: "Casamento" },
@@ -150,7 +151,7 @@ export default function Contato() {
     const phoneE164 = "+55" + formData.telefone.replace(/\D/g, "");
 
     try {
-      const { error } = await supabase.from("leads").insert({
+      const leadData = {
         name: formData.nome,
         phone: formData.telefone,
         phone_e164: phoneE164,
@@ -160,10 +161,41 @@ export default function Contato() {
         message: formData.mensagem,
         source: formData.comoConheceu || null,
         consent: formData.consentimento,
+        source_page: window.location.pathname,
         ...utmParams,
-      });
+      };
+
+      const { data, error } = await supabase
+        .from("leads")
+        .insert(leadData)
+        .select()
+        .single();
 
       if (error) throw error;
+      
+      // Trigger webhook for new lead
+      if (data) {
+        triggerWebhook("lead_created", {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          phone_e164: data.phone_e164,
+          niche: data.niche,
+          city: data.city,
+          message: data.message,
+          status: data.status,
+          notes: data.notes,
+          source_page: data.source_page,
+          utm_source: data.utm_source,
+          utm_medium: data.utm_medium,
+          utm_campaign: data.utm_campaign,
+          utm_content: data.utm_content,
+          utm_term: data.utm_term,
+          consent: data.consent,
+          created_at: data.created_at,
+        });
+      }
       
       setIsSubmitted(true);
       toast({
@@ -285,7 +317,7 @@ export default function Contato() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Localização</p>
-                    <p className="font-medium">São Paulo, SP - Brasil</p>
+                    <p className="font-medium">Cascavel, PR - Brasil</p>
                   </div>
                 </div>
               </div>

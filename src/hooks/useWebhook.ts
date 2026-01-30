@@ -1,13 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 
-interface WebhookConfig {
-  enabled: boolean;
-  url: string;
-  send_on_create: boolean;
-  send_on_update: boolean;
-  send_on_status_change: boolean;
-}
-
 interface LeadData {
   id: string;
   name: string;
@@ -29,81 +21,36 @@ interface LeadData {
   created_at: string;
 }
 
-type WebhookEvent = "lead_created" | "lead_updated" | "status_changed";
-
-async function getWebhookConfig(): Promise<WebhookConfig | null> {
-  const { data, error } = await supabase
-    .from("site_settings")
-    .select("value")
-    .eq("key", "webhook_config")
-    .maybeSingle();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return data.value as unknown as WebhookConfig;
-}
+type WebhookEvent = "lead_created" | "lead_updated" | "status_changed" | "test";
 
 export async function triggerWebhook(
   event: WebhookEvent,
   leadData: LeadData,
   previousStatus?: string
-): Promise<void> {
+): Promise<{ success: boolean; message?: string }> {
   try {
-    const config = await getWebhookConfig();
+    console.log(`[Webhook] Triggering event: ${event}`);
 
-    if (!config || !config.enabled || !config.url) {
-      return;
-    }
-
-    // Check if this event type should trigger the webhook
-    if (event === "lead_created" && !config.send_on_create) return;
-    if (event === "lead_updated" && !config.send_on_update) return;
-    if (event === "status_changed" && !config.send_on_status_change) return;
-
-    const payload: Record<string, unknown> = {
-      event,
-      timestamp: new Date().toISOString(),
-      source: "blackboy_films",
-      data: {
-        id: leadData.id,
-        name: leadData.name,
-        email: leadData.email,
-        phone: leadData.phone,
-        phone_e164: leadData.phone_e164,
-        niche: leadData.niche,
-        city: leadData.city,
-        message: leadData.message,
-        status: leadData.status,
-        notes: leadData.notes,
-        source_page: leadData.source_page,
-        utm_source: leadData.utm_source,
-        utm_medium: leadData.utm_medium,
-        utm_campaign: leadData.utm_campaign,
-        utm_content: leadData.utm_content,
-        utm_term: leadData.utm_term,
-        consent: leadData.consent,
-        created_at: leadData.created_at,
+    const { data, error } = await supabase.functions.invoke("webhook-proxy", {
+      body: {
+        event,
+        data: leadData,
+        previous_status: previousStatus,
       },
-    };
-
-    if (event === "status_changed" && previousStatus) {
-      payload.previous_status = previousStatus;
-    }
-
-    // Send webhook (no-cors mode for cross-origin requests)
-    await fetch(config.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      mode: "no-cors",
-      body: JSON.stringify(payload),
     });
 
-    console.log(`[Webhook] Event "${event}" sent successfully`);
+    if (error) {
+      console.error("[Webhook] Error invoking edge function:", error);
+      return { success: false, message: error.message };
+    }
+
+    console.log(`[Webhook] Response:`, data);
+    return { success: data?.success ?? true, message: data?.message };
   } catch (error) {
     console.error("[Webhook] Error sending webhook:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error",
+    };
   }
 }

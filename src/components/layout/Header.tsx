@@ -13,8 +13,7 @@ const navLinks = [
   { href: "/contato", label: "Contato" },
 ];
 
-const WHATSAPP_NUMBER = "5511999999999"; // Replace with actual number
-const WHATSAPP_MESSAGE = "Olá! Gostaria de saber mais sobre os serviços da Blackboy Films.";
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=554599827236&text=Vim%20pelo%20site%20e%20gostaria%20de%20um%20or%C3%A7amento%21";
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -34,7 +33,7 @@ export function Header() {
     setIsMobileMenuOpen(false);
   }, [location]);
 
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  const whatsappUrl = WHATSAPP_URL;
 
   return (
     <header

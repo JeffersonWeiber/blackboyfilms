@@ -5,9 +5,11 @@ import { Layout } from "@/components/layout/Layout";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { VideoModal } from "@/components/ui/VideoModal";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useActiveNiches } from "@/hooks/useNiches";
 import { cn } from "@/lib/utils";
 import { Play, Loader2 } from "lucide-react";
 import { generateThumbnailUrl, VideoType } from "@/lib/videoUtils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PortfolioItem {
   id: string;
@@ -23,20 +25,19 @@ interface SelectedVideo {
   videoType: VideoType;
 }
 
-const categories = [
-  { id: "all", label: "Todos" },
-  { id: "casamento", label: "Casamento" },
-  { id: "eventos", label: "Eventos" },
-  { id: "clinicas", label: "Clínicas" },
-  { id: "marcas", label: "Marcas" },
-  { id: "food", label: "Food" },
-  { id: "imobiliario", label: "Imobiliário" },
-];
-
 export default function Works() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
   const { ref, isVisible } = useScrollReveal<HTMLDivElement>();
+
+  // Fetch active niches for dynamic categories
+  const { data: niches, isLoading: isLoadingNiches } = useActiveNiches();
+
+  // Build categories from niches
+  const categories = [
+    { id: "all", label: "Todos" },
+    ...(niches?.map(n => ({ id: n.slug, label: n.name })) || []),
+  ];
 
   // Fetch published portfolio items
   const { data: projects, isLoading } = useQuery({
@@ -84,22 +85,30 @@ export default function Works() {
           />
 
           {/* Filter */}
-          <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={cn(
-                  "px-5 py-2 rounded-full text-sm font-medium transition-all duration-300",
-                  activeCategory === cat.id
-                    ? "bg-gold text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                )}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          {isLoadingNiches ? (
+            <div className="flex justify-center gap-3 mb-12">
+              {[1, 2, 3, 4, 5].map(i => (
+                <Skeleton key={i} className="w-24 h-10 rounded-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap justify-center gap-3 mb-12">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={cn(
+                    "px-5 py-2 rounded-full text-sm font-medium transition-all duration-300",
+                    activeCategory === cat.id
+                      ? "bg-gold text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  )}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

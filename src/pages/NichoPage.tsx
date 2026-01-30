@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
@@ -158,9 +158,20 @@ export default function NichoPage() {
   const { nicho: slug } = useParams<{ nicho: string }>();
   const { ref, isVisible } = useScrollReveal<HTMLDivElement>();
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [forceVisible, setForceVisible] = useState(false);
   
   // Fetch niche data from database
   const { data: nicheData, isLoading: isNicheLoading, error: nicheError } = useNicheBySlug(slug);
+
+  // Force visibility after data loads (fallback for SPA navigation)
+  useEffect(() => {
+    if (nicheData) {
+      const timer = setTimeout(() => {
+        setForceVisible(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [nicheData]);
 
   // Fetch the most recent video for the featured section
   const { data: featuredVideo, isLoading: isFeaturedLoading } = useQuery({
@@ -263,7 +274,10 @@ export default function NichoPage() {
         <div className="container mx-auto px-4 lg:px-8">
           <div
             ref={ref}
-            className={cn("grid lg:grid-cols-2 gap-12 lg:gap-20 items-center reveal", isVisible && "visible")}
+            className={cn(
+              "grid lg:grid-cols-2 gap-12 lg:gap-20 items-center reveal", 
+              (isVisible || forceVisible) && "visible"
+            )}
           >
             <div>
               <SectionTitle

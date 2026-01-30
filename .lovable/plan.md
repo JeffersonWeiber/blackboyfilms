@@ -1,77 +1,101 @@
 
-## Plano: Corrigir Visibilidade das Seções nas Páginas de Nicho
+## Plano: Adicionar Blur Dourado Premium nos Vídeos
 
-### 1. Problema Identificado
+### 1. Conceito Visual
 
-A seção "O Que Oferecemos" e o vídeo lateral estão invisíveis porque:
-- A classe CSS `reveal` define `opacity: 0` por padrão
-- O hook `useScrollReveal` usa IntersectionObserver para adicionar `visible` (opacity: 1)
-- O Observer não está disparando corretamente na navegação entre páginas (SPA behavior)
-- O scroll é resetado para o topo, mas o elemento pode já estar visível antes do Observer ser registrado
+Adicionar um efeito de **glow/blur suave** na cor gold (dourado da identidade) atrás dos containers de vídeo, criando um aspecto mais cinematográfico e premium. O efeito será sutil para não competir com o conteúdo.
 
-### 2. Solução Proposta
+### 2. Locais Afetados
 
-Modificar o componente `NichoPage.tsx` para **não depender exclusivamente** do scroll reveal na seção de benefícios, garantindo que o conteúdo seja visível imediatamente ou após um pequeno delay.
+| Local | Componente | Descrição |
+|-------|------------|-----------|
+| Página de Nicho - Vídeo em Destaque | `NichoPage.tsx` | Vídeo lateral na seção "Incluído no Serviço" |
+| Página de Nicho - Projetos Recentes | `NichoPage.tsx` | Grid de thumbnails de vídeo |
+| Página Works | `Works.tsx` | Grid completo do portfólio |
+| Player de Vídeo | `NicheVideoPlayer.tsx` | Componente base do player |
 
----
+### 3. Implementação Técnica
 
-### 3. Mudanças Específicas
+#### 3.1 Nova Classe CSS Global (`src/index.css`)
 
-#### 3.1 Arquivo: `src/pages/NichoPage.tsx`
+Criar uma classe reutilizável `.video-glow` que adiciona o efeito:
 
-**Problema atual (linha 264-266):**
-```tsx
-<div
-  ref={ref}
-  className={cn("grid lg:grid-cols-2 gap-12 lg:gap-20 items-center reveal", isVisible && "visible")}
->
+```css
+.video-glow {
+  @apply relative;
+}
+
+.video-glow::before {
+  content: '';
+  @apply absolute -inset-4 rounded-2xl opacity-30 blur-2xl -z-10;
+  background: linear-gradient(
+    135deg, 
+    hsl(var(--gold) / 0.4), 
+    hsl(var(--gold-light) / 0.2)
+  );
+}
+
+/* Hover enhancement */
+.video-glow:hover::before {
+  @apply opacity-50;
+  transition: opacity 0.5s ease;
+}
 ```
 
-**Solução:** Adicionar um `useEffect` que força `visible` após um pequeno delay quando os dados do nicho carregam, garantindo que o conteúdo apareça mesmo se o Observer falhar:
+Características:
+- **`-inset-4`**: Expande 16px além das bordas do vídeo
+- **`blur-2xl`**: Blur de 40px para suavidade
+- **`opacity-30`**: Bem sutil por padrão
+- **`-z-10`**: Fica atrás do vídeo
+- **Hover**: Aumenta a intensidade levemente
 
+#### 3.2 Aplicar nos Componentes
+
+**NichoPage.tsx - Vídeo em Destaque (linha 312):**
 ```tsx
-const [forceVisible, setForceVisible] = useState(false);
-
-useEffect(() => {
-  if (nicheData) {
-    // Force visibility after a short delay to ensure content is shown
-    const timer = setTimeout(() => {
-      setForceVisible(true);
-    }, 100);
-    return () => clearTimeout(timer);
-  }
-}, [nicheData]);
+<div className="aspect-video rounded-lg overflow-hidden video-glow">
 ```
 
-E atualizar a className:
+**NichoPage.tsx - Projetos Recentes (linha 357):**
 ```tsx
-className={cn(
-  "grid lg:grid-cols-2 gap-12 lg:gap-20 items-center reveal", 
-  (isVisible || forceVisible) && "visible"
-)}
+<div className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer video-glow">
 ```
 
----
+**Works.tsx - Grid de Projetos (linha 138):**
+```tsx
+<div className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer video-glow">
+```
 
 ### 4. Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/pages/NichoPage.tsx` | Adicionar `forceVisible` state e useEffect para garantir visibilidade após carregamento dos dados |
+| `src/index.css` | Adicionar classe `.video-glow` com pseudo-elemento blur |
+| `src/pages/NichoPage.tsx` | Aplicar classe `video-glow` nos containers de vídeo |
+| `src/pages/Works.tsx` | Aplicar classe `video-glow` nos cards do portfólio |
 
----
+### 5. Resultado Visual Esperado
 
-### 5. Benefícios
+```text
+┌─────────────────────────────────┐
+│    ░░░░░░░░░░░░░░░░░░░░░░░░░   │  ← Blur dourado sutil
+│  ░░┌───────────────────────┐░░ │
+│  ░░│                       │░░ │
+│  ░░│      📹 VÍDEO        │░░ │
+│  ░░│                       │░░ │
+│  ░░└───────────────────────┘░░ │
+│    ░░░░░░░░░░░░░░░░░░░░░░░░░   │
+└─────────────────────────────────┘
+```
 
-- Conteúdo sempre visível após o carregamento
-- Mantém a animação de scroll reveal quando funciona
-- Fallback seguro para quando o Observer não dispara
-- Compatível com navegação SPA (React Router)
+### 6. Respeito a prefers-reduced-motion
 
----
+O efeito de blur é estático, então não precisa ser desabilitado para usuários com reduced-motion.
 
-### 6. Impacto
+### 7. Benefícios
 
-- Zero quebras de funcionalidade existente
-- Melhora significativa na UX das páginas de nicho
-- Padrão já usado com sucesso em `NichosSection.tsx` (linha 18-24 do código existente)
+- Visual mais premium e cinematográfico
+- Reforça a identidade visual (cor gold)
+- Efeito sutil que não distrai do conteúdo
+- Classe reutilizável para futuros componentes
+- Zero impacto na performance (CSS puro)

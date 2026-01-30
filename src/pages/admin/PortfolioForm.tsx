@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -30,7 +30,12 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveNiches } from "@/hooks/useNiches";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { 
+  useUploadPortfolioThumbnail, 
+  useDeletePortfolioThumbnail,
+  isPortfolioThumbnailUrl 
+} from "@/hooks/usePortfolio";
+import { ArrowLeft, Loader2, Upload, X, Image as ImageIcon } from "lucide-react";
 import { detectVideoType, isValidVideoUrl, generateThumbnailUrl } from "@/lib/videoUtils";
 
 const formSchema = z.object({
@@ -41,13 +46,15 @@ const formSchema = z.object({
     (url) => isValidVideoUrl(url),
     "URL inválida. Use um link do YouTube ou Google Drive"
   ),
-  thumbnail_url: z.string().url("URL inválida").optional().or(z.literal("")),
   is_published: z.boolean().default(false),
   is_featured: z.boolean().default(false),
   display_order: z.coerce.number().int().min(0).default(0),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const VALID_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function PortfolioForm() {
   const { id } = useParams();
@@ -56,10 +63,19 @@ export default function PortfolioForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Thumbnail state
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [existingThumbnailUrl, setExistingThumbnailUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
   
-  // Fetch niches from database
+  // Hooks
   const { data: niches } = useActiveNiches();
+  const uploadThumbnail = useUploadPortfolioThumbnail();
+  const deleteThumbnail = useDeletePortfolioThumbnail();
+  
   const nicheOptions = niches?.map((n) => ({ value: n.slug, label: n.name })) || [];
 
   const form = useForm<FormValues>({
@@ -69,7 +85,6 @@ export default function PortfolioForm() {
       description: "",
       niche: "",
       video_url: "",
-      thumbnail_url: "",
       is_published: false,
       is_featured: false,
       display_order: 0,
@@ -106,18 +121,87 @@ export default function PortfolioForm() {
         description: item.description || "",
         niche: item.niche,
         video_url: item.video_url,
-        thumbnail_url: item.thumbnail_url || "",
         is_published: item.is_published,
         is_featured: item.is_featured,
         display_order: item.display_order,
       });
+      
+      // Set existing thumbnail if it's from our bucket
+      if (isPortfolioThumbnailUrl(item.thumbnail_url)) {
+        setExistingThumbnailUrl(item.thumbnail_url);
+        setThumbnailPreview(item.thumbnail_url);
+      }
     }
   }, [item, form]);
 
+  // Handle file selection
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate type
+    if (!VALID_IMAGE_TYPES.includes(file.type)) {
+      toast({
+        title: "Formato inválido",
+        description: "Use JPG, PNG ou WebP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate size
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "Máximo 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setThumbnailFile(file);
+    setThumbnailPreview(URL.createObjectURL(file));
+  };
+
+  // Remove thumbnail
+  const handleRemoveThumbnail = () => {
+    setThumbnailFile(null);
+    setThumbnailPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      let thumbnailUrl: string | null = existingThumbnailUrl;
+
+      // Upload new thumbnail if selected
+      if (thumbnailFile) {
+        // Delete old thumbnail if exists in our bucket
+        if (existingThumbnailUrl && isPortfolioThumbnailUrl(existingThumbnailUrl)) {
+          try {
+            await deleteThumbnail.mutateAsync(existingThumbnailUrl);
+          } catch (err) {
+            console.warn("Failed to delete old thumbnail:", err);
+          }
+        }
+        thumbnailUrl = await uploadThumbnail.mutateAsync(thumbnailFile);
+      } else if (!thumbnailPreview && existingThumbnailUrl) {
+        // User removed the thumbnail
+        if (isPortfolioThumbnailUrl(existingThumbnailUrl)) {
+          try {
+            await deleteThumbnail.mutateAsync(existingThumbnailUrl);
+          } catch (err) {
+            console.warn("Failed to delete old thumbnail:", err);
+          }
+        }
+        thumbnailUrl = null;
+      }
+
+      // If no custom thumbnail, use video thumbnail
+      const finalThumbnail = thumbnailUrl || generateThumbnailUrl(values.video_url) || null;
       const videoType = detectVideoType(values.video_url);
-      const thumbnailUrl = values.thumbnail_url || generateThumbnailUrl(values.video_url) || null;
 
       const payload = {
         title: values.title,
@@ -125,7 +209,7 @@ export default function PortfolioForm() {
         niche: values.niche,
         video_url: values.video_url,
         video_type: videoType,
-        thumbnail_url: thumbnailUrl,
+        thumbnail_url: finalThumbnail,
         is_published: values.is_published,
         is_featured: values.is_featured,
         display_order: values.display_order,
@@ -157,6 +241,8 @@ export default function PortfolioForm() {
   const onSubmit = (values: FormValues) => {
     saveMutation.mutate(values);
   };
+
+  const isUploading = uploadThumbnail.isPending || deleteThumbnail.isPending;
 
   if (isEditing && isLoadingItem) {
     return (
@@ -289,22 +375,63 @@ export default function PortfolioForm() {
               <VideoPreview url={videoUrl} />
             </div>
 
-            <FormField
-              control={form.control}
-              name="thumbnail_url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Thumbnail Customizada</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Deixe vazio para usar a thumbnail automática do vídeo
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Thumbnail Upload */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium block">Thumbnail Customizada</label>
+              
+              <div className="flex gap-4 items-start">
+                {/* Preview */}
+                <div className="w-40 h-24 rounded-lg border border-border bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {thumbnailPreview ? (
+                    <div className="relative w-full h-full group">
+                      <img
+                        src={thumbnailPreview}
+                        alt="Thumbnail preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveThumbnail}
+                        className="absolute top-1 right-1 p-1 bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                    </div>
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                  )}
+                </div>
+
+                {/* Upload button */}
+                <div className="flex-1 space-y-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleThumbnailChange}
+                    className="hidden"
+                    id="thumbnail-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="w-full sm:w-auto"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Escolher arquivo
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG ou WebP. Máximo 5MB.
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                Deixe vazio para usar a thumbnail automática do vídeo
+              </p>
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-6">
               <FormField
@@ -348,8 +475,8 @@ export default function PortfolioForm() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Button type="submit" disabled={saveMutation.isPending || isUploading}>
+                {(saveMutation.isPending || isUploading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {isEditing ? "Salvar Alterações" : "Criar Projeto"}
               </Button>
             </div>

@@ -12,18 +12,21 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import { triggerWebhook } from "@/hooks/useWebhook";
 import { 
   Webhook, 
   Save,
   CheckCircle,
   AlertCircle,
   Zap,
-  TestTube
+  TestTube,
+  Key
 } from "lucide-react";
 
 interface WebhookConfig {
   enabled: boolean;
   url: string;
+  secret: string;
   send_on_create: boolean;
   send_on_update: boolean;
   send_on_status_change: boolean;
@@ -32,6 +35,7 @@ interface WebhookConfig {
 const defaultWebhookConfig: WebhookConfig = {
   enabled: false,
   url: "",
+  secret: "",
   send_on_create: true,
   send_on_update: true,
   send_on_status_change: true,
@@ -137,36 +141,34 @@ export default function Config() {
     setIsTesting(true);
 
     try {
-      await fetch(formData.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        mode: "no-cors",
-        body: JSON.stringify({
-          event: "test",
-          timestamp: new Date().toISOString(),
-          source: "blackboy_films_admin",
-          data: {
-            message: "Teste de webhook da Blackboy Films",
-            lead_sample: {
-              id: "test-uuid",
-              name: "Lead de Teste",
-              email: "teste@exemplo.com",
-              phone: "(11) 99999-9999",
-              niche: "casamento",
-              status: "novo",
-              message: "Esta é uma mensagem de teste do webhook.",
-              created_at: new Date().toISOString(),
-            }
-          }
-        }),
+      // Use the Edge Function for testing (same flow as production)
+      const result = await triggerWebhook("test", {
+        id: "test-uuid-" + Date.now(),
+        name: "Lead de Teste",
+        email: "teste@exemplo.com",
+        phone: "(11) 99999-9999",
+        phone_e164: "+5511999999999",
+        niche: "casamento",
+        city: "Cascavel",
+        message: "Esta é uma mensagem de teste do webhook.",
+        status: "novo",
+        source_page: "/admin/config",
+        consent: true,
+        created_at: new Date().toISOString(),
       });
 
-      toast({
-        title: "Requisição enviada",
-        description: "O webhook foi disparado. Verifique sua ferramenta de automação para confirmar o recebimento.",
-      });
+      if (result.success) {
+        toast({
+          title: "Webhook enviado com sucesso!",
+          description: "O n8n/Zapier/Make deve ter recebido o JSON corretamente.",
+        });
+      } else {
+        toast({
+          title: "Erro ao enviar webhook",
+          description: result.message || "Verifique a URL e tente novamente.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error testing webhook:", error);
       toast({
@@ -270,6 +272,28 @@ export default function Config() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Cole aqui a URL do webhook do Zapier, Make, n8n ou outra ferramenta de automação.
+              </p>
+            </div>
+
+            {/* Secret Input */}
+            <div className="space-y-2">
+              <Label htmlFor="webhook-secret" className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                Secret (opcional)
+              </Label>
+              <Input
+                id="webhook-secret"
+                type="password"
+                placeholder="seu-token-secreto"
+                value={formData.secret}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, secret: e.target.value }))
+                }
+                disabled={!isAdmin}
+              />
+              <p className="text-xs text-muted-foreground">
+                Token enviado no header <code className="bg-muted px-1 rounded">x-webhook-secret</code>. 
+                Use para validar que a requisição veio do seu servidor.
               </p>
             </div>
 

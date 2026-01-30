@@ -1,308 +1,177 @@
 
-## Plano: Secao "Alguns de Nossos Clientes" com Carrossel Marquee
 
-### 1. Visao Geral
+## Plano: Ajustar Hero para Layout com Logo Centralizada
 
-Criar uma nova secao na Home com carrossel infinito de logos de clientes, gerenciavel pelo Admin:
+### 1. Visao Geral das Mudancas
 
-| Aspecto | Implementacao |
-|---------|---------------|
-| Posicao | Entre CTASection e Footer |
-| Visual | Fundo escuro + faixa gold no topo (igual referencia) |
-| Carrossel | Loop infinito marquee (CSS puro) |
-| Admin | CRUD completo de clientes + configuracoes |
-| Storage | Supabase Storage bucket para uploads |
+| Componente | Estado Atual | Estado Desejado |
+|------------|--------------|-----------------|
+| Header (logo) | Logo completa "BLACKBOY FILMS" | Apenas icone "B" (favicon) |
+| Hero | Titulo "HISTORIAS QUE INSPIRAM" | Logo grande centralizada |
+| Hero texto | "Producao Audiovisual Premium" acima do titulo | Abaixo da logo |
 
 ---
 
-### 2. Banco de Dados
+### 2. Mudancas no Header
 
-#### 2.1 Nova Tabela: `clients`
+**Arquivo:** `src/components/layout/Header.tsx`
 
-| Campo | Tipo | Obrigatorio | Descricao |
-|-------|------|-------------|-----------|
-| id | uuid | Sim | Chave primaria |
-| name | text | Sim | Nome do cliente |
-| logo_url | text | Sim | URL da logo (Supabase Storage) |
-| website_url | text | Nao | Link externo (abre em nova aba) |
-| category | text | Nao | Categoria opcional |
-| is_featured | boolean | Sim | Exibir na secao da Home |
-| is_active | boolean | Sim | Pausar sem apagar |
-| display_order | integer | Sim | Ordem manual |
-| created_at | timestamp | Sim | Data de criacao |
-| updated_at | timestamp | Sim | Data de atualizacao |
+Trocar a logo completa pelo icone (favicon):
 
-#### 2.2 RLS Policies
+| Antes | Depois |
+|-------|--------|
+| `logo-blackboy-films.svg` (logo completa) | Novo arquivo `logo-icon.svg` (apenas o "B") |
+| Altura: `h-8 md:h-10` | Altura: `h-8 md:h-10` (mantida) |
 
-| Operacao | Regra |
-|----------|-------|
-| SELECT (publico) | `is_active = true AND is_featured = true` |
-| SELECT (admin/editor) | Todos os registros |
-| INSERT/UPDATE | admin + editor |
-| DELETE | apenas admin |
-
-#### 2.3 Configuracoes em `site_settings`
-
-Nova chave `clients_section_config`:
-
-```json
-{
-  "enabled": true,
-  "title": "ALGUNS DE NOSSOS CLIENTES",
-  "carousel_speed": 40,
-  "pause_on_hover": true,
-  "logo_height": 48
-}
-```
+O icone "B" ja existe em `public/favicon.svg`, mas precisamos copia-lo para `src/assets/logo-icon.svg` para usar como import ES6.
 
 ---
 
-### 3. Supabase Storage
+### 3. Mudancas no Hero
 
-Criar bucket `client-logos`:
+**Arquivo:** `src/components/home/HeroSection.tsx`
 
-| Configuracao | Valor |
-|--------------|-------|
-| Nome | client-logos |
-| Publico | Sim (para exibir no site) |
-| Tamanho maximo | 2MB |
-| Tipos permitidos | image/svg+xml, image/png, image/webp |
-
----
-
-### 4. Componente da Home: ClientsSection
-
-#### 4.1 Layout Visual
+**Nova estrutura (de cima para baixo):**
 
 ```text
 +--------------------------------------------------+
-|  =========== FAIXA GOLD (40px) =================  |
-+--------------------------------------------------+
 |                                                  |
-|        ALGUNS DE NOSSOS CLIENTES                 |
+|              [LOGO GRANDE CENTRALIZADA]          |
+|                 BLACKBOY FILMS                   |
 |                                                  |
-|  [Logo] [Logo] [Logo] [Logo] [Logo] [Logo] >>>   |
-|  <<< [Logo] [Logo] [Logo] [Logo] [Logo] [Logo]   |
+|         PRODUCAO AUDIOVISUAL PREMIUM             |
+|                                                  |
+|   Transformamos ideias em experiencias...        |
+|                                                  |
+|    [Receber Proposta]   [Ver Portfolio]          |
 |                                                  |
 +--------------------------------------------------+
 ```
 
-#### 4.2 Comportamento do Marquee
+**Alteracoes especificas:**
 
-| Recurso | Implementacao |
-|---------|---------------|
-| Animacao | CSS `@keyframes marquee` (translate linear infinito) |
-| Duplicacao | Logos duplicados para loop suave sem "pulo" |
-| Pause on hover | Desktop: pausar animacao no hover |
-| Mobile | Scroll horizontal nativo + animacao suave |
-| Reduced motion | Grid estatico (sem animacao) |
-
-#### 4.3 CSS Marquee
-
-```css
-@keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.marquee-track {
-  display: flex;
-  animation: marquee var(--speed, 40s) linear infinite;
-}
-
-.marquee-track:hover {
-  animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .marquee-track {
-    animation: none;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-}
-```
-
-#### 4.4 Hover nos Logos
-
-- Opacidade: 0.7 -> 1.0
-- Zoom: scale(1) -> scale(1.08)
-- Transicao: 200ms ease
+| Elemento | Mudanca |
+|----------|---------|
+| Logo grande | Adicionar `<img>` da logo completa no topo, centralizada |
+| Tamanho logo | Desktop: `max-w-md` (~400px), Mobile: `max-w-xs` (~280px) |
+| Titulo antigo | Remover "HISTORIAS QUE INSPIRAM" |
+| Subtitulo gold | Mover "PRODUCAO AUDIOVISUAL PREMIUM" para baixo da logo |
+| Descricao | Manter como esta |
+| Botoes | Manter como estao |
 
 ---
 
-### 5. Admin: Gerenciamento de Clientes
-
-#### 5.1 Nova Pagina: `/admin/clients`
-
-| Secao | Funcionalidade |
-|-------|----------------|
-| Header | Titulo + Botao "Novo Cliente" |
-| Filtros | Busca, Featured, Ativos |
-| Tabela | Logo, Nome, Categoria, Featured, Ativo, Ordem, Acoes |
-| Acoes | Toggle Featured, Toggle Ativo, Editar, Excluir |
-
-#### 5.2 Formulario: `/admin/clients/new` e `/admin/clients/:id/edit`
-
-| Campo | Tipo | Validacao |
-|-------|------|-----------|
-| Nome | Input text | Obrigatorio, max 100 chars |
-| Logo | Upload file | Obrigatorio, SVG/PNG/WebP, max 2MB |
-| Website | Input URL | Opcional, validar URL |
-| Categoria | Input text | Opcional |
-| Featured | Checkbox | - |
-| Ativo | Checkbox | - |
-| Ordem | Input number | Min 0 |
-
-#### 5.3 Upload de Logo
-
-Fluxo:
-1. Usuario seleciona arquivo
-2. Preview da imagem
-3. Ao salvar, upload para Supabase Storage
-4. Armazena URL publica no campo `logo_url`
-
----
-
-### 6. Configuracoes da Secao (Admin)
-
-Adicionar nova tab/secao em `/admin/config` ou criar `/admin/clients/settings`:
-
-| Campo | Tipo | Default |
-|-------|------|---------|
-| Secao habilitada | Switch | true |
-| Titulo | Input | "ALGUNS DE NOSSOS CLIENTES" |
-| Velocidade do carrossel | Slider (20-80s) | 40 |
-| Pausar no hover | Switch | true |
-| Altura das logos | Input (32-64px) | 48 |
-
----
-
-### 7. Arquivos a Criar
+### 4. Arquivos a Criar
 
 | Arquivo | Descricao |
 |---------|-----------|
-| src/components/home/ClientsSection.tsx | Componente da secao de clientes |
-| src/pages/admin/ClientsList.tsx | Lista de clientes no Admin |
-| src/pages/admin/ClientsForm.tsx | Formulario de criar/editar cliente |
-| src/hooks/useClients.ts | Hooks para buscar clientes |
+| `src/assets/logo-icon.svg` | Copia do favicon para usar no header |
 
 ---
 
-### 8. Arquivos a Modificar
+### 5. Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| src/pages/Index.tsx | Adicionar ClientsSection antes do Footer |
-| src/components/admin/AdminSidebar.tsx | Adicionar link "Clientes" |
-| src/App.tsx | Adicionar rotas /admin/clients/* |
-| src/index.css | Adicionar keyframes marquee |
+| `src/components/layout/Header.tsx` | Trocar import da logo pela logo-icon |
+| `src/components/home/HeroSection.tsx` | Adicionar logo grande + reorganizar conteudo |
 
 ---
 
-### 9. Diagrama de Fluxo (Upload de Logo)
+### 6. Codigo - Header
 
-```text
-[Usuario seleciona arquivo]
-         |
-         v
-[Validar tipo e tamanho]
-         |
-   +-----+-----+
-   |           |
- Invalido    Valido
-   |           |
-   v           v
-[Erro]   [Preview local]
-                |
-                v
-         [Clique Salvar]
-                |
-                v
-   [Upload para Supabase Storage]
-                |
-                v
-   [Retorna URL publica]
-                |
-                v
-   [Salva registro na tabela clients]
+```tsx
+// Antes
+import logoBlackboy from "@/assets/logo-blackboy-films.svg";
+
+// Depois  
+import logoIcon from "@/assets/logo-icon.svg";
+
+// No JSX
+<img 
+  src={logoIcon} 
+  alt="Blackboy Films" 
+  className="h-8 md:h-10 w-auto"
+/>
 ```
 
 ---
 
-### 10. Consideracoes de Performance
+### 7. Codigo - HeroSection
 
-| Item | Solucao |
-|------|---------|
-| Lazy loading | Logos com loading="lazy" |
-| Formato otimizado | Preferir SVG/WebP |
-| Cache | Supabase Storage tem cache nativo |
-| Animacao | CSS puro (sem JS no loop) |
-| Bundle | Sem dependencias externas para o marquee |
+```tsx
+import logoBlackboy from "@/assets/logo-blackboy-films.svg";
 
----
+// Nova estrutura do conteudo:
+<div className={cn("reveal", isVisible && "visible")}>
+  {/* Logo Grande Centralizada */}
+  <img
+    src={logoBlackboy}
+    alt="Blackboy Films"
+    className="mx-auto mb-8 w-64 md:w-80 lg:w-96 h-auto"
+  />
+  
+  {/* Subtitulo */}
+  <span className="inline-block text-gold text-sm md:text-base font-medium tracking-[0.3em] uppercase mb-6">
+    Producao Audiovisual Premium
+  </span>
+  
+  {/* Descricao */}
+  <p className="max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
+    Transformamos ideias em experiencias cinematograficas inesqueciveis. 
+    Do conceito a entrega, cada frame e pensado para impactar.
+  </p>
 
-### 11. Acessibilidade
-
-| Recurso | Implementacao |
-|---------|---------------|
-| Reduced motion | Respeitar `prefers-reduced-motion` |
-| Alt text | Usar `name` do cliente como alt |
-| Keyboard | Links acessiveis via Tab |
-| Contraste | Logos em fundo escuro (legibilidade) |
-
----
-
-### 12. Seed Inicial (Opcional)
-
-Criar 5-10 clientes de exemplo com logos placeholder para demonstracao.
-
----
-
-### 13. Ordem de Implementacao
-
-1. **Migracao DB**: Criar tabela `clients` + RLS + trigger updated_at
-2. **Storage**: Criar bucket `client-logos`
-3. **Hook useClients**: Buscar clientes featured
-4. **ClientsSection**: Componente com marquee
-5. **Index.tsx**: Integrar secao na Home
-6. **Admin - ClientsList**: Pagina de listagem
-7. **Admin - ClientsForm**: Formulario com upload
-8. **Rotas + Sidebar**: Integrar no sistema
-9. **Configuracoes**: Adicionar settings em site_settings
-
----
-
-### 14. Resumo Visual Final
-
-**Home - Secao Clientes:**
-
-```text
-+================================================+
-|  ================== GOLD BAR ================  |
-+================================================+
-|                                                |
-|        ALGUNS DE NOSSOS CLIENTES               |
-|        ─────────────────────────               |
-|                                                |
-|   [logo1] [logo2] [logo3] [logo4] [logo5] >>> |
-|                                                |
-+------------------------------------------------+
+  {/* Botoes - mantidos */}
+</div>
 ```
 
-**Admin - Lista de Clientes:**
+---
+
+### 8. Responsividade
+
+| Breakpoint | Logo Hero | Logo Header |
+|------------|-----------|-------------|
+| Mobile (<640px) | `w-64` (256px) | `h-8` (32px) |
+| Tablet (md) | `w-80` (320px) | `h-10` (40px) |
+| Desktop (lg+) | `w-96` (384px) | `h-10` (40px) |
+
+---
+
+### 9. Resumo Visual
+
+**Header (depois):**
 
 ```text
-+------------------------------------------------+
-|  CLIENTES                    [+ Novo Cliente]  |
-+------------------------------------------------+
-| [Buscar...          ]  [Filtro: Todos v]       |
-+------------------------------------------------+
-| Logo | Nome          | Cat     | F | A | Ordem |
-+------------------------------------------------+
-| [img]| Cargill       | Food    | * | o |   1   |
-| [img]| PESA CAT      | Indust. | * | o |   2   |
-| [img]| MHP Cars      | Auto    | * | o |   3   |
-+------------------------------------------------+
+[B icon]    HOME  WORKS  PROCESSO  SOBRE  CONTATO    [Fale Conosco]
 ```
+
+**Hero (depois):**
+
+```text
++--------------------------------------------------+
+|                                                  |
+|              FILMS                               |
+|           [>] BLACK                              |
+|               BOY                                |
+|                                                  |
+|         PRODUCAO AUDIOVISUAL PREMIUM             |
+|                                                  |
+|   Transformamos ideias em experiencias           |
+|   cinematograficas inesqueciveis...              |
+|                                                  |
+|    [Receber Proposta]   [> Ver Portfolio]        |
+|                                                  |
+|                   v (scroll)                     |
++--------------------------------------------------+
+```
+
+---
+
+### 10. Ordem de Implementacao
+
+1. Criar `src/assets/logo-icon.svg` (copiar do favicon)
+2. Atualizar `Header.tsx` para usar o icone
+3. Atualizar `HeroSection.tsx` com logo grande centralizada
+4. Testar responsividade em mobile/tablet/desktop
 

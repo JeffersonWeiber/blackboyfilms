@@ -137,7 +137,7 @@ export default function Works() {
                 return (
                   <div
                     key={project.id}
-                    className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer"
+                    className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer video-glow"
                     onClick={() => handleProjectClick(project)}
                   >
                     {thumbnail ? (

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { TrackingScripts } from "@/components/tracking/TrackingScripts";
+import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import Index from "./pages/Index";
 import Works from "./pages/Works";
 import Processo from "./pages/Processo";
@@ -36,6 +37,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <TrackingScripts />
           <Routes>
             {/* Public Routes */}

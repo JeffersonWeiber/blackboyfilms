@@ -62,7 +62,42 @@ export default function Tracking() {
     }
   }, [config]);
 
+  // Validation patterns for pixel IDs - prevents script injection
+  const validateGA4Id = (id: string) => /^G-[A-Z0-9]{6,12}$/i.test(id.trim());
+  const validateMetaId = (id: string) => /^[0-9]{15,16}$/.test(id.trim());
+  const validateTikTokId = (id: string) => /^[A-Z0-9]{18,24}$/i.test(id.trim());
+
   const handleSave = async () => {
+    // Validate all enabled pixel IDs before saving
+    const errors: string[] = [];
+    
+    if (formData.ga4.enabled && formData.ga4.measurement_id) {
+      if (!validateGA4Id(formData.ga4.measurement_id)) {
+        errors.push("GA4 Measurement ID inválido. Formato esperado: G-XXXXXXXXXX");
+      }
+    }
+    
+    if (formData.meta.enabled && formData.meta.pixel_id) {
+      if (!validateMetaId(formData.meta.pixel_id)) {
+        errors.push("Meta Pixel ID inválido. Deve ter 15-16 dígitos numéricos.");
+      }
+    }
+    
+    if (formData.tiktok.enabled && formData.tiktok.pixel_id) {
+      if (!validateTikTokId(formData.tiktok.pixel_id)) {
+        errors.push("TikTok Pixel ID inválido. Deve ter 18-24 caracteres alfanuméricos.");
+      }
+    }
+    
+    if (errors.length > 0) {
+      toast({
+        title: "IDs de pixel inválidos",
+        description: errors.join(" "),
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await updateConfig.mutateAsync(formData);
       toast({
@@ -77,10 +112,6 @@ export default function Tracking() {
       });
     }
   };
-
-  const validateGA4Id = (id: string) => /^G-[A-Z0-9]+$/.test(id);
-  const validateMetaId = (id: string) => /^\d{15,16}$/.test(id);
-  const validateTikTokId = (id: string) => /^[A-Z0-9]{20,}$/.test(id);
 
   if (isLoading) {
     return (

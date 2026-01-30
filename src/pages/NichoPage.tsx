@@ -309,7 +309,7 @@ export default function NichoPage() {
             </div>
 
             {/* Featured Video - Single autoplay video in 16:9 */}
-            <div className="aspect-video rounded-lg overflow-hidden">
+            <div className="aspect-video rounded-lg overflow-hidden video-glow">
               {isFeaturedLoading ? (
                 <Skeleton className="w-full h-full" />
               ) : featuredVideo ? (
@@ -354,7 +354,7 @@ export default function NichoPage() {
                   <div
                     key={project.id}
                     onClick={() => setSelectedVideo(project.video_url)}
-                    className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer"
+                    className="group relative aspect-video rounded-lg overflow-hidden cursor-pointer video-glow"
                   >
                     <img
                       src={thumbnailUrl}

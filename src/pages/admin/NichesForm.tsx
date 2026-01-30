@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -20,14 +20,18 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, X, Upload } from "lucide-react";
+import {
+  useUploadNicheCover,
+  useDeleteNicheCover,
+  isNicheCoverUrl,
+} from "@/hooks/useNicheCover";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100),
   slug: z.string().min(1, "Slug é obrigatório").max(100)
     .regex(/^[a-z0-9-]+$/, "Slug deve conter apenas letras minúsculas, números e hífens"),
   description: z.string().min(1, "Descrição é obrigatória").max(500),
-  cover_image: z.string().url("URL inválida").optional().or(z.literal("")),
   whatsapp_template: z.string().max(1000).optional(),
   is_featured: z.boolean().default(false),
   is_active: z.boolean().default(true),
@@ -40,11 +44,11 @@ function generateSlug(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove accents
-    .replace(/[^a-z0-9\s-]/g, "") // Remove special characters
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
     .trim()
-    .replace(/\s+/g, "-") // Replace spaces with hyphens
-    .replace(/-+/g, "-"); // Replace multiple hyphens with single
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
 }
 
 export default function NichesForm() {
@@ -54,13 +58,21 @@ export default function NichesForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Cover image state
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [existingCoverUrl, setExistingCoverUrl] = useState<string | null>(null);
+
+  // Upload/delete mutations
+  const uploadCover = useUploadNicheCover();
+  const deleteCover = useDeleteNicheCover();
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       slug: "",
       description: "",
-      cover_image: "",
       whatsapp_template: "",
       is_featured: false,
       is_active: true,
@@ -100,22 +112,83 @@ export default function NichesForm() {
         name: niche.name,
         slug: niche.slug,
         description: niche.description,
-        cover_image: niche.cover_image || "",
         whatsapp_template: niche.whatsapp_template || "",
         is_featured: niche.is_featured,
         is_active: niche.is_active,
         display_order: niche.display_order,
       });
+      setExistingCoverUrl(niche.cover_image || null);
     }
   }, [niche, form]);
 
+  // Handle cover file change
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate type
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Formato inválido",
+        description: "Use JPG, PNG ou WebP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "Máximo 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+  };
+
+  // Handle cover removal
+  const handleRemoveCover = () => {
+    setCoverFile(null);
+    setCoverPreview(null);
+    setExistingCoverUrl(null);
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      let coverUrl = existingCoverUrl;
+
+      // Upload new cover if selected
+      if (coverFile) {
+        // Delete old cover if it's from our bucket
+        if (existingCoverUrl && isNicheCoverUrl(existingCoverUrl)) {
+          try {
+            await deleteCover.mutateAsync(existingCoverUrl);
+          } catch (err) {
+            console.warn("Failed to delete old cover:", err);
+          }
+        }
+        coverUrl = await uploadCover.mutateAsync(coverFile);
+      }
+
+      // If user removed cover (no file, no existing)
+      if (!coverFile && !existingCoverUrl && niche?.cover_image && isNicheCoverUrl(niche.cover_image)) {
+        try {
+          await deleteCover.mutateAsync(niche.cover_image);
+        } catch (err) {
+          console.warn("Failed to delete removed cover:", err);
+        }
+      }
+
       const payload = {
         name: values.name,
         slug: values.slug,
         description: values.description,
-        cover_image: values.cover_image || null,
+        cover_image: coverUrl,
         whatsapp_template: values.whatsapp_template || null,
         is_featured: values.is_featured,
         is_active: values.is_active,
@@ -161,6 +234,8 @@ export default function NichesForm() {
       </AdminLayout>
     );
   }
+
+  const isUploading = uploadCover.isPending || deleteCover.isPending;
 
   return (
     <AdminLayout>
@@ -234,22 +309,44 @@ export default function NichesForm() {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="cover_image"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Imagem de Capa</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} />
-                  </FormControl>
+            {/* Cover Image Upload */}
+            <FormItem>
+              <FormLabel>Imagem de Capa</FormLabel>
+              <div className="flex items-start gap-4">
+                {/* Preview */}
+                {(coverPreview || existingCoverUrl) && (
+                  <div className="relative w-32 h-24 rounded-lg overflow-hidden border border-border flex-shrink-0">
+                    <img
+                      src={coverPreview || existingCoverUrl || ""}
+                      alt="Cover preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveCover}
+                      className="absolute top-1 right-1 p-1 bg-destructive rounded-full hover:bg-destructive/90 transition-colors"
+                    >
+                      <X className="w-3 h-3 text-destructive-foreground" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Upload Input */}
+                <div className="flex-1 space-y-2">
+                  <div className="relative">
+                    <Input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleCoverChange}
+                      className="cursor-pointer"
+                    />
+                  </div>
                   <FormDescription>
-                    URL da imagem de capa (recomendado: 800x600)
+                    JPG, PNG ou WebP. Máximo 5MB. Recomendado: 800x600
                   </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                </div>
+              </div>
+            </FormItem>
 
             <FormField
               control={form.control}
@@ -328,8 +425,10 @@ export default function NichesForm() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Button type="submit" disabled={saveMutation.isPending || isUploading}>
+                {(saveMutation.isPending || isUploading) && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
                 {isEditing ? "Salvar Alterações" : "Criar Nicho"}
               </Button>
             </div>

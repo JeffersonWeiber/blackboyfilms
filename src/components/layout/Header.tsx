@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import logoBlackboy from "@/assets/logo-blackboy-films.svg";
+import logoIcon from "@/assets/logo-icon.svg";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -50,7 +50,7 @@ export function Header() {
           {/* Logo */}
           <Link to="/" className="relative z-10">
             <img 
-              src={logoBlackboy} 
+              src={logoIcon} 
               alt="Blackboy Films" 
               className="h-8 md:h-10 w-auto"
             />

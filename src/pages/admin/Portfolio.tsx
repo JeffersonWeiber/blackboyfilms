@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Pencil, Trash2, Star, Eye, EyeOff, Youtube, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { detectVideoType, generateThumbnailUrl } from "@/lib/videoUtils";
+import { useActiveNiches } from "@/hooks/useNiches";
 
 interface PortfolioItem {
   id: string;
@@ -51,16 +52,6 @@ interface PortfolioItem {
   created_at: string;
 }
 
-const nicheOptions = [
-  { value: "all", label: "Todos os nichos" },
-  { value: "casamento", label: "Casamento" },
-  { value: "eventos", label: "Eventos" },
-  { value: "clinicas", label: "Clínicas" },
-  { value: "marcas", label: "Marcas" },
-  { value: "food", label: "Food" },
-  { value: "imobiliario", label: "Imobiliário" },
-];
-
 const statusOptions = [
   { value: "all", label: "Todos" },
   { value: "published", label: "Publicados" },
@@ -73,6 +64,14 @@ export default function Portfolio() {
   const [statusFilter, setStatusFilter] = useState("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Fetch niches from database
+  const { data: niches } = useActiveNiches();
+  
+  const nicheOptions = [
+    { value: "all", label: "Todos os nichos" },
+    ...(niches?.map((n) => ({ value: n.slug, label: n.name })) || []),
+  ];
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["portfolio-items", nicheFilter, statusFilter],

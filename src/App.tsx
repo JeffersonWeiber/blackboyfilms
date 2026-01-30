@@ -21,6 +21,8 @@ import LeadsList from "./pages/admin/LeadsList";
 import LeadDetail from "./pages/admin/LeadDetail";
 import Portfolio from "./pages/admin/Portfolio";
 import PortfolioForm from "./pages/admin/PortfolioForm";
+import NichesList from "./pages/admin/NichesList";
+import NichesForm from "./pages/admin/NichesForm";
 import Analytics from "./pages/admin/Analytics";
 import Tracking from "./pages/admin/Tracking";
 import Config from "./pages/admin/Config";
@@ -93,6 +95,30 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PortfolioForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/nichos"
+              element={
+                <ProtectedRoute>
+                  <NichesList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/nichos/new"
+              element={
+                <ProtectedRoute>
+                  <NichesForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/nichos/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <NichesForm />
                 </ProtectedRoute>
               }
             />

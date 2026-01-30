@@ -8,119 +8,64 @@ import { NicheVideoPlayer } from "@/components/ui/NicheVideoPlayer";
 import { VideoModal } from "@/components/ui/VideoModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useNicheBySlug } from "@/hooks/useNiches";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { generateThumbnailUrl, detectVideoType } from "@/lib/videoUtils";
-import { ArrowRight, Play, CheckCircle } from "lucide-react";
+import { ArrowRight, Play, CheckCircle, Loader2 } from "lucide-react";
 
-const nichosData: Record<string, {
-  title: string;
-  subtitle: string;
-  description: string;
-  heroImage: string;
-  benefits: string[];
-}> = {
-  casamento: {
-    title: "CASAMENTO",
-    subtitle: "Wedding Films",
-    description: "Eternize o dia mais especial com cinematografia que emociona gerações. Cada olhar, cada sorriso, cada lágrima de alegria - capturamos a essência do seu amor com sensibilidade e técnica impecável.",
-    heroImage: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80",
-    benefits: [
-      "Cobertura completa do evento",
-      "Filme principal de 5-15 minutos",
-      "Teaser para redes sociais",
-      "Same-day edit disponível",
-      "Drone para cenas aéreas",
-      "Entrega em até 60 dias",
-    ],
-  },
-  eventos: {
-    title: "EVENTOS",
-    subtitle: "Event Coverage",
-    description: "Cobertura completa de eventos corporativos, shows, festivais e conferências. Capturamos a energia e os momentos marcantes que fazem seu evento único.",
-    heroImage: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1920&q=80",
-    benefits: [
-      "Múltiplas câmeras",
-      "Cobertura completa do evento",
-      "Highlight reel",
-      "Entrevistas com participantes",
-      "Live streaming disponível",
-      "Entrega expressa",
-    ],
-  },
-  clinicas: {
-    title: "CLÍNICAS",
-    subtitle: "Healthcare Content",
-    description: "Conteúdo audiovisual profissional para clínicas e consultórios. Transmita confiança e expertise através de vídeos que humanizam sua marca e conectam com pacientes.",
-    heroImage: "https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?auto=format&fit=crop&w=1920&q=80",
-    benefits: [
-      "Vídeos institucionais",
-      "Depoimentos de pacientes",
-      "Apresentação de procedimentos",
-      "Conteúdo para redes sociais",
-      "Tours virtuais",
-      "Conformidade com regulamentações",
-    ],
-  },
-  marcas: {
-    title: "MARCAS & ADS",
-    subtitle: "Brand Films & Advertising",
-    description: "Campanhas publicitárias e brand films que conectam com seu público. Do conceito à entrega, criamos narrativas visuais que impulsionam resultados.",
-    heroImage: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=1920&q=80",
-    benefits: [
-      "Comerciais para TV e digital",
-      "Brand films",
-      "Vídeos para redes sociais",
-      "Product shots",
-      "Campanhas integradas",
-      "A/B testing de criativos",
-    ],
-  },
-  food: {
-    title: "FOOD",
-    subtitle: "Gastronomia",
-    description: "Gastronomia filmada com técnica e paixão. Cada prato é uma obra de arte, e nosso trabalho é fazer com que as pessoas sintam o sabor através da tela.",
-    heroImage: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1920&q=80",
-    benefits: [
-      "Food styling profissional",
-      "Slow motion e macro",
-      "Ambiente e atmosfera",
-      "Menu em vídeo",
-      "Conteúdo para delivery apps",
-      "Behind the scenes",
-    ],
-  },
-  imobiliario: {
-    title: "IMOBILIÁRIO",
-    subtitle: "Real Estate",
-    description: "Tours virtuais e vídeos que vendem propriedades antes mesmo da visita. Destaque cada detalhe e crie uma conexão emocional com potenciais compradores.",
-    heroImage: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1920&q=80",
-    benefits: [
-      "Tours virtuais 360°",
-      "Filmagem com drone",
-      "Vídeos de apresentação",
-      "Fotos profissionais",
-      "Virtual staging",
-      "Entrega em 48h",
-    ],
-  },
+// Default benefits per niche (can be expanded to database later)
+const defaultBenefits: Record<string, string[]> = {
+  casamento: [
+    "Cobertura completa do evento",
+    "Filme principal de 5-15 minutos",
+    "Teaser para redes sociais",
+    "Same-day edit disponível",
+    "Drone para cenas aéreas",
+    "Entrega em até 60 dias",
+  ],
+  eventos: [
+    "Múltiplas câmeras",
+    "Cobertura completa do evento",
+    "Highlight reel",
+    "Entrevistas com participantes",
+    "Live streaming disponível",
+    "Entrega expressa",
+  ],
+  clinicas: [
+    "Vídeos institucionais",
+    "Depoimentos de pacientes",
+    "Apresentação de procedimentos",
+    "Conteúdo para redes sociais",
+    "Tours virtuais",
+    "Conformidade com regulamentações",
+  ],
+  default: [
+    "Produção profissional completa",
+    "Edição cinematográfica",
+    "Colorização premium",
+    "Entrega em alta qualidade",
+    "Versões para redes sociais",
+    "Atendimento personalizado",
+  ],
 };
 
 export default function NichoPage() {
-  const { nicho } = useParams<{ nicho: string }>();
+  const { nicho: slug } = useParams<{ nicho: string }>();
   const { ref, isVisible } = useScrollReveal<HTMLDivElement>();
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   
-  const data = nicho ? nichosData[nicho] : null;
+  // Fetch niche data from database
+  const { data: nicheData, isLoading: isNicheLoading, error: nicheError } = useNicheBySlug(slug);
 
   // Fetch the most recent video for the featured section
   const { data: featuredVideo, isLoading: isFeaturedLoading } = useQuery({
-    queryKey: ["nicho-featured-video", nicho],
+    queryKey: ["nicho-featured-video", slug],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("portfolio_items")
         .select("*")
-        .eq("niche", nicho!)
+        .eq("niche", slug!)
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -129,17 +74,17 @@ export default function NichoPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!nicho,
+    enabled: !!slug,
   });
 
   // Fetch recent projects for the grid section
   const { data: recentProjects, isLoading: isProjectsLoading } = useQuery({
-    queryKey: ["nicho-recent-projects", nicho],
+    queryKey: ["nicho-recent-projects", slug],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("portfolio_items")
         .select("*")
-        .eq("niche", nicho!)
+        .eq("niche", slug!)
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(3);
@@ -147,15 +92,30 @@ export default function NichoPage() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!nicho,
+    enabled: !!slug,
   });
 
-  if (!data) {
+  // Loading state
+  if (isNicheLoading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-gold" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // Not found state
+  if (!nicheData || nicheError) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h1 className="font-display text-4xl mb-4">Página não encontrada</h1>
+            <p className="text-muted-foreground mb-6">
+              A categoria que você está procurando não existe ou foi desativada.
+            </p>
             <Button asChild>
               <Link to="/">Voltar para Home</Link>
             </Button>
@@ -165,14 +125,17 @@ export default function NichoPage() {
     );
   }
 
+  const benefits = defaultBenefits[slug || ""] || defaultBenefits.default;
+  const heroImage = nicheData.cover_image || "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1920&q=80";
+
   return (
     <Layout>
       {/* Hero */}
       <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={data.heroImage}
-            alt={data.title}
+            src={heroImage}
+            alt={nicheData.name}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
@@ -180,13 +143,13 @@ export default function NichoPage() {
 
         <div className="relative z-10 container mx-auto px-4 lg:px-8 text-center pt-20">
           <span className="inline-block text-gold text-sm font-medium tracking-[0.3em] uppercase mb-4">
-            {data.subtitle}
+            {nicheData.name}
           </span>
           <h1 className="font-display text-5xl md:text-7xl lg:text-8xl tracking-wide mb-6">
-            {data.title}
+            {nicheData.name.toUpperCase()}
           </h1>
           <p className="max-w-2xl mx-auto text-lg md:text-xl text-foreground/80">
-            {data.description}
+            {nicheData.description}
           </p>
         </div>
       </section>
@@ -205,7 +168,7 @@ export default function NichoPage() {
                 align="left"
               />
               <ul className="space-y-4">
-                {data.benefits.map((benefit) => (
+                {benefits.map((benefit) => (
                   <li key={benefit} className="flex items-center gap-4">
                     <div className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center flex-shrink-0">
                       <CheckCircle className="w-4 h-4 text-gold" />
@@ -267,7 +230,7 @@ export default function NichoPage() {
               {recentProjects.map((project) => {
                 const thumbnailUrl = project.thumbnail_url || 
                   generateThumbnailUrl(project.video_url, detectVideoType(project.video_url)) ||
-                  data.heroImage;
+                  heroImage;
 
                 return (
                   <div

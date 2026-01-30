@@ -29,17 +29,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveNiches } from "@/hooks/useNiches";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { detectVideoType, isValidVideoUrl, generateThumbnailUrl } from "@/lib/videoUtils";
-
-const nicheOptions = [
-  { value: "casamento", label: "Casamento" },
-  { value: "eventos", label: "Eventos" },
-  { value: "clinicas", label: "Clínicas" },
-  { value: "marcas", label: "Marcas" },
-  { value: "food", label: "Food" },
-  { value: "imobiliario", label: "Imobiliário" },
-];
 
 const formSchema = z.object({
   title: z.string().min(1, "Título é obrigatório").max(200),
@@ -65,6 +57,10 @@ export default function PortfolioForm() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [videoUrl, setVideoUrl] = useState("");
+  
+  // Fetch niches from database
+  const { data: niches } = useActiveNiches();
+  const nicheOptions = niches?.map((n) => ({ value: n.slug, label: n.name })) || [];
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

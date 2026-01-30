@@ -1,223 +1,258 @@
 
 
-## Plano: Kanban de Leads e Tela Analytics
+## Plano: Pagina de Configuracao de Tracking
 
 ### 1. Visao Geral
 
-Implementar duas funcionalidades principais no painel Admin:
-
-1. **Kanban de Leads** - Visualizacao e gestao de leads em colunas por status com drag-and-drop
-2. **Tela Analytics** - Dashboard com graficos de crescimento e metricas de conversao
+Criar uma pagina completa no Admin para configurar os pixels de rastreamento (GA4, Meta Pixel, TikTok Pixel) de forma dinamica, sem necessidade de editar codigo. A configuracao sera salva no banco de dados e injetada automaticamente no site.
 
 ---
 
-### 2. Kanban de Leads
+### 2. Estrutura da Pagina
 
-#### Estrutura do Kanban
+A pagina `/admin/tracking` tera as seguintes secoes:
 
-Colunas baseadas nos status existentes no sistema:
-
-| Coluna | Status | Cor |
-|--------|--------|-----|
-| Novos | `novo` | Azul |
-| Em Contato | `em_contato` | Amarelo |
-| Proposta Enviada | `proposta_enviada` | Roxo |
-| Fechados | `fechado` | Verde |
-| Perdidos | `perdido` | Vermelho |
-
-#### Funcionalidades
-
-- Drag and drop entre colunas (atualiza status automaticamente)
-- Contador de leads por coluna
-- Card do lead com: nome, telefone, nicho, data
-- Click no card abre detalhes do lead
-- Acoes rapidas: WhatsApp, email
-- Filtro por nicho
-- Alternancia entre visualizacao: Kanban / Lista (ja existente)
-
-#### Componentes a Criar
-
-- `src/components/admin/LeadsKanban.tsx` - Container principal do Kanban
-- `src/components/admin/KanbanColumn.tsx` - Coluna individual
-- `src/components/admin/KanbanCard.tsx` - Card do lead arrastavel
+| Secao | Descricao |
+|-------|-----------|
+| Google Analytics 4 | ID de medicao, toggle ativar/desativar |
+| Meta Pixel (Facebook) | ID do Pixel, toggle ativar/desativar |
+| TikTok Pixel | ID do Pixel, toggle ativar/desativar |
+| Configuracoes LGPD | Anonimizar IP, Modo de Consentimento |
+| Eventos Customizados | Visualizacao dos eventos trackeados |
 
 ---
 
-### 3. Tela Analytics - Metricas Recomendadas
+### 3. Pixels e Melhores Praticas
 
-Baseado nos dados disponiveis (tabela `leads`), as metricas mais relevantes sao:
+#### 3.1 Google Analytics 4 (GA4)
 
-#### 3.1 KPIs Principais (Cards no Topo)
+**Campos necessarios:**
+- GA4 Measurement ID (ex: G-XXXXXXXXXX)
+- Toggle: Ativar/Desativar
+- Toggle: Debug Mode (para desenvolvimento)
 
-| Metrica | Descricao | Calculo |
-|---------|-----------|---------|
-| Total de Leads | Todos os leads recebidos | `COUNT(*)` |
-| Taxa de Conversao | % de leads que fecharam | `fechados / total * 100` |
-| Tempo Medio de Resposta | Media de dias ate primeiro contato | `AVG(data_em_contato - data_criacao)` |
-| Valor Medio por Nicho | Distribuicao de leads por nicho | Agrupamento |
+**Eventos recomendados para trackear:**
+- `page_view` - Automatico ao navegar
+- `generate_lead` - Ao enviar formulario
+- `click_whatsapp` - Clique no WhatsApp
+- `view_content` - Visualizacao de portfolio/nicho
 
-#### 3.2 Graficos de Crescimento
+**Melhores praticas:**
+- Usar Consent Mode V2 para LGPD
+- Configurar eventos como `send_page_view: false` para SPAs
+- Usar `transport_type: 'beacon'` para confiabilidade
 
-**Grafico 1: Leads ao Longo do Tempo (Linha)**
-- Eixo X: Dias/Semanas/Meses
-- Eixo Y: Quantidade de leads
-- Filtro de periodo: 7d, 30d, 90d, 12m
-- Mostra tendencia de crescimento
+#### 3.2 Meta Pixel (Facebook/Instagram)
 
-**Grafico 2: Leads por Nicho (Barras)**
-- Cada barra = um nicho
-- Altura = quantidade de leads
-- Cores diferenciadas por nicho
+**Campos necessarios:**
+- Meta Pixel ID (ex: 1234567890123456)
+- Toggle: Ativar/Desativar
 
-**Grafico 3: Funil de Conversao (Barras Horizontais)**
-- Visualizacao do pipeline
-- Novo -> Em Contato -> Proposta -> Fechado
-- Mostra taxa de conversao entre etapas
+**Eventos recomendados:**
+- `PageView` - Todas as paginas
+- `Lead` - Formulario enviado
+- `ViewContent` - Ver pagina de nicho
+- `Contact` - Clique no WhatsApp
 
-**Grafico 4: Distribuicao por Status (Donut/Pizza)**
-- Proporcao de leads por status
-- Bom para visao geral rapida
+**Melhores praticas:**
+- Inicializar com `fbq('consent', 'revoke')` ate consentimento LGPD
+- Usar `fbq('consent', 'grant')` apos aceite
 
-#### 3.3 Tabelas e Insights
+#### 3.3 TikTok Pixel
 
-**Origem do Trafego**
-- UTM Source mais frequentes
-- UTM Campaign com melhor conversao
-- Pagina de origem (source_page)
+**Campos necessarios:**
+- TikTok Pixel ID (ex: XXXXXXXXXXXX)
+- Toggle: Ativar/Desativar
 
-**Performance por Nicho**
-- Nicho com mais leads
-- Nicho com maior taxa de conversao
-- Tendencia de crescimento por nicho
-
-#### 3.4 Filtros Globais
-
-- Periodo: Hoje, 7 dias, 30 dias, 90 dias, Ano, Customizado
-- Nicho: Todos / Individual
-- Status: Todos / Individual
+**Eventos recomendados:**
+- `PageView` - Todas as paginas
+- `SubmitForm` - Formulario enviado
+- `ViewContent` - Ver portfolio
+- `ClickButton` - Cliques em CTAs
 
 ---
 
-### 4. Arquitetura Tecnica
+### 4. Configuracoes LGPD/Privacidade
 
-#### Novos Arquivos
+#### Opcoes disponiveis:
 
-```
-src/pages/admin/
-  Analytics.tsx           # Nova pagina de analytics
-  LeadsKanban.tsx         # Pagina do Kanban (nova)
+| Opcao | Descricao |
+|-------|-----------|
+| Anonimizar IP | Nao envia IP completo ao GA4 |
+| Modo Consentimento | Ativa Consent Mode do Google |
+| Cookies Essenciais | Carrega pixels apenas apos consentimento |
+| Exibir Banner de Cookies | Mostra banner de aceite (futuro) |
 
-src/components/admin/
-  LeadsKanban.tsx         # Componente Kanban principal
-  KanbanColumn.tsx        # Coluna do Kanban
-  KanbanCard.tsx          # Card arrastavel
-  AnalyticsCharts.tsx     # Graficos do analytics
-  AnalyticsKPIs.tsx       # Cards de KPIs
-  DateRangeFilter.tsx     # Filtro de periodo
-```
-
-#### Bibliotecas Utilizadas
-
-- **recharts** (ja instalado) - Para todos os graficos
-- **date-fns** (ja instalado) - Manipulacao de datas
-
-#### Implementacao do Drag-and-Drop
-
-Usar a API nativa de HTML5 Drag and Drop:
-- `draggable="true"` nos cards
-- `onDragStart`, `onDragOver`, `onDrop` para controle
-- Atualizar status no Supabase ao soltar
+#### Consent Mode V2 (Google):
+- `ad_storage`: denied/granted
+- `analytics_storage`: denied/granted
+- `ad_user_data`: denied/granted
+- `ad_personalization`: denied/granted
 
 ---
 
-### 5. Queries SQL para Analytics
+### 5. Banco de Dados
 
-**Leads por periodo:**
-```sql
-SELECT 
-  DATE(created_at) as date,
-  COUNT(*) as count
-FROM leads
-WHERE created_at >= NOW() - INTERVAL '30 days'
-GROUP BY DATE(created_at)
-ORDER BY date
+Criar tabela `site_settings` para armazenar as configuracoes:
+
+```text
+Tabela: site_settings
+Colunas:
+- id: uuid (PK)
+- key: text (UNIQUE) - nome da configuracao
+- value: jsonb - valor da configuracao
+- updated_at: timestamp
+- updated_by: uuid (FK -> auth.users)
 ```
 
-**Leads por nicho:**
-```sql
-SELECT 
-  niche,
-  COUNT(*) as count
-FROM leads
-GROUP BY niche
-ORDER BY count DESC
-```
+**Chaves previstas:**
+- `tracking_ga4`: { enabled: bool, measurement_id: string, debug_mode: bool }
+- `tracking_meta`: { enabled: bool, pixel_id: string }
+- `tracking_tiktok`: { enabled: bool, pixel_id: string }
+- `tracking_lgpd`: { anonymize_ip: bool, consent_mode: bool, cookies_required: bool }
 
-**Funil de conversao:**
-```sql
-SELECT 
-  status,
-  COUNT(*) as count
-FROM leads
-GROUP BY status
-```
+**RLS Policies:**
+- Admin pode ler/escrever
+- Editor pode apenas ler
 
-**Origem do trafego:**
-```sql
-SELECT 
-  COALESCE(utm_source, 'Direto') as source,
-  COUNT(*) as count
-FROM leads
-GROUP BY utm_source
-ORDER BY count DESC
-LIMIT 10
+---
+
+### 6. Componente de Injecao de Scripts
+
+Criar componente `TrackingScripts.tsx` que:
+
+1. Busca configuracoes do banco de dados
+2. Injeta scripts dinamicamente no `<head>`
+3. Respeita configuracoes de LGPD
+4. Dispara eventos personalizados
+
+**Fluxo:**
+```text
+App carrega -> TrackingScripts busca config -> Se ativo, injeta script -> Trackeia pageview
 ```
 
 ---
 
-### 6. Rotas a Adicionar
+### 7. Hook para Eventos
 
-| Rota | Componente | Descricao |
-|------|------------|-----------|
-| `/admin/analytics` | Analytics.tsx | Dashboard de analytics |
-| `/admin/leads/kanban` | LeadsKanban.tsx | Visualizacao Kanban |
+Criar hook `useTracking.ts` para facilitar o disparo de eventos em qualquer lugar:
 
-A rota `/admin/leads` atual continuara funcionando com a visualizacao em lista.
+```text
+const { trackEvent } = useTracking();
 
----
+// Uso:
+trackEvent('generate_lead', { niche: 'casamento' });
+trackEvent('click_whatsapp', { page: '/contato' });
+```
 
-### 7. UI/UX
-
-- Manter a estetica dark cinematografica do site
-- Usar a cor gold (#D4AF37) como destaque nos graficos
-- Cards com bordas sutis e sombras suaves
-- Graficos responsivos
-- Animacoes suaves ao carregar dados
-- Loading skeletons enquanto carrega
+O hook verifica quais pixels estao ativos e dispara para todos.
 
 ---
 
-### 8. Ordem de Implementacao
+### 8. Arquitetura Tecnica
 
-1. **Passo 1**: Criar pagina `/admin/analytics` basica com KPIs
-2. **Passo 2**: Adicionar graficos de linha (leads ao longo do tempo)
-3. **Passo 3**: Adicionar graficos de barra (nicho) e donut (status)
-4. **Passo 4**: Implementar filtros de periodo e nicho
-5. **Passo 5**: Criar componentes do Kanban
-6. **Passo 6**: Implementar drag-and-drop
-7. **Passo 7**: Integrar Kanban na pagina de leads
+#### Arquivos a Criar:
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/pages/admin/Tracking.tsx` | Pagina de configuracao |
+| `src/components/tracking/TrackingScripts.tsx` | Injeta scripts no site |
+| `src/hooks/useTracking.ts` | Hook para disparar eventos |
+| `src/hooks/useTrackingConfig.ts` | Busca configuracoes do DB |
+
+#### Arquivos a Modificar:
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/App.tsx` | Adicionar rota /admin/tracking + TrackingScripts |
+| `src/pages/Contato.tsx` | Adicionar eventos de lead |
+| `src/components/layout/Header.tsx` | Evento click_whatsapp |
+| `src/components/layout/WhatsAppFloat.tsx` | Evento click_whatsapp |
+
+---
+
+### 9. UI da Pagina Tracking
+
+Layout com cards organizados:
+
+```text
++------------------------------------------+
+|  CONFIGURACOES DE TRACKING               |
+|  Configure os pixels sem mexer no codigo |
++------------------------------------------+
+
++------------------+  +------------------+
+| GOOGLE ANALYTICS |  | META PIXEL       |
+| [Toggle] Ativo   |  | [Toggle] Ativo   |
+| ID: G-XXXXXXXX   |  | ID: 123456789    |
+| [x] Debug Mode   |  |                  |
++------------------+  +------------------+
+
++------------------+  +------------------+
+| TIKTOK PIXEL     |  | LGPD / PRIVAC.   |
+| [Toggle] Ativo   |  | [x] Anonimizar   |
+| ID: XXXXXXXXXXXX |  | [x] Consent Mode |
++------------------+  +------------------+
+
++------------------------------------------+
+| EVENTOS CONFIGURADOS                     |
+| - page_view: GA4, Meta, TikTok           |
+| - generate_lead: GA4, Meta               |
+| - click_whatsapp: GA4, Meta, TikTok      |
++------------------------------------------+
+
+           [Salvar Configuracoes]
+```
+
+---
+
+### 10. Eventos Pre-configurados
+
+Lista de eventos que serao trackeados automaticamente:
+
+| Evento | Gatilho | Plataformas |
+|--------|---------|-------------|
+| `page_view` | Navegacao entre paginas | GA4, Meta, TikTok |
+| `generate_lead` | Envio do formulario de contato | GA4, Meta, TikTok |
+| `click_whatsapp_header` | Clique no WhatsApp do header | GA4, Meta, TikTok |
+| `click_whatsapp_floating` | Clique no botao flutuante | GA4, Meta, TikTok |
+| `view_portfolio_item` | Clique em projeto do portfolio | GA4, Meta |
+| `click_niche_card` | Clique em card de nicho | GA4, Meta |
+| `cta_primary_click` | Clique no CTA do hero | GA4, Meta |
+| `form_start` | Inicio do preenchimento do form | GA4 |
+
+---
+
+### 11. Seguranca
+
+- IDs de pixels sao armazenados no banco (Supabase)
+- Apenas admins podem editar configuracoes
+- Scripts sao carregados via HTTPS
+- Validacao de formato dos IDs antes de salvar
+
+---
+
+### 12. Ordem de Implementacao
+
+1. **Passo 1**: Criar tabela `site_settings` no Supabase com RLS
+2. **Passo 2**: Criar pagina `/admin/tracking` com formulario
+3. **Passo 3**: Criar hook `useTrackingConfig` para buscar configs
+4. **Passo 4**: Criar componente `TrackingScripts` para injetar scripts
+5. **Passo 5**: Criar hook `useTracking` para disparar eventos
+6. **Passo 6**: Integrar TrackingScripts no App.tsx
+7. **Passo 7**: Adicionar eventos nos componentes existentes
 8. **Passo 8**: Adicionar rota no App.tsx
 
 ---
 
-### 9. Resumo dos Arquivos a Criar/Modificar
+### 13. Resumo
 
-| Arquivo | Acao | Descricao |
-|---------|------|-----------|
-| `src/pages/admin/Analytics.tsx` | Criar | Dashboard de analytics completo |
-| `src/components/admin/LeadsKanban.tsx` | Criar | Kanban de gestao de leads |
-| `src/components/admin/KanbanColumn.tsx` | Criar | Coluna do Kanban |
-| `src/components/admin/KanbanCard.tsx` | Criar | Card arrastavel do lead |
-| `src/App.tsx` | Modificar | Adicionar rota /admin/analytics |
-| `src/components/admin/AdminSidebar.tsx` | Modificar | Link para Kanban (se necessario) |
+Esta implementacao permite que voce configure tracking completo sem tocar no codigo:
+
+- **GA4**: Analise completa de trafego e conversoes
+- **Meta Pixel**: Retargeting no Facebook/Instagram
+- **TikTok Pixel**: Retargeting no TikTok
+- **LGPD**: Conformidade com privacidade brasileira
+
+Os eventos serao disparados automaticamente nos pontos criticos de conversao do site.
 

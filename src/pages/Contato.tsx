@@ -40,7 +40,7 @@ const comoConheceu = [
   { value: "outros", label: "Outros" },
 ];
 
-const WHATSAPP_NUMBER = "5511999999999";
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=554599827236&text=Vim%20pelo%20site%20e%20gostaria%20de%20um%20or%C3%A7amento%21";
 
 export default function Contato() {
   const { ref, isVisible } = useScrollReveal<HTMLDivElement>();
@@ -214,10 +214,7 @@ export default function Contato() {
     }
   };
 
-  const whatsappMessage = encodeURIComponent(
-    `Olá! Acabei de enviar um formulário no site. Meu nome é ${formData.nome} e tenho interesse em serviços de ${formData.nicho}.`
-  );
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`;
+  const whatsappUrl = WHATSAPP_URL;
 
   if (isSubmitted) {
     return (
@@ -297,7 +294,7 @@ export default function Contato() {
                 </a>
 
                 <a
-                  href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                  href={WHATSAPP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 p-4 rounded-lg bg-card border border-border/50 hover:border-gold/50 transition-colors group"
@@ -307,7 +304,7 @@ export default function Contato() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">WhatsApp</p>
-                    <p className="font-medium">+55 11 99999-9999</p>
+                    <p className="font-medium">+55 45 9982-7236</p>
                   </div>
                 </a>
 
@@ -334,7 +331,7 @@ export default function Contato() {
                   variant="outline"
                   className="w-full border-gold text-gold hover:bg-gold hover:text-primary-foreground"
                 >
-                  <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer">
+                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Abrir WhatsApp
                   </a>

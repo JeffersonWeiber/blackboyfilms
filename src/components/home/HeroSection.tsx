@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { cn } from "@/lib/utils";
 import heroBackground from "@/assets/hero-background.png";
+import logoBlackboy from "@/assets/logo-blackboy-films.svg";
 
 export function HeroSection() {
   const { ref, isVisible } = useScrollReveal<HTMLElement>();
@@ -28,15 +29,16 @@ export function HeroSection() {
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 lg:px-8 text-center">
         <div className={cn("reveal", isVisible && "visible")}>
+          {/* Logo Grande Centralizada */}
+          <img
+            src={logoBlackboy}
+            alt="Blackboy Films"
+            className="mx-auto mb-8 w-64 md:w-80 lg:w-96 h-auto"
+          />
+          
           <span className="inline-block text-gold text-sm md:text-base font-medium tracking-[0.3em] uppercase mb-6">
             Produção Audiovisual Premium
           </span>
-          
-          <h1 className="font-display text-5xl md:text-7xl lg:text-8xl tracking-wide leading-tight mb-6">
-            HISTÓRIAS QUE
-            <br />
-            <span className="text-gradient">INSPIRAM</span>
-          </h1>
           
           <p className="max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
             Transformamos ideias em experiências cinematográficas inesquecíveis. 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { detectVideoType, generateEmbedUrl, generateThumbnailUrl, getVideoTypeLabel, isValidVideoUrl } from "@/lib/videoUtils";
+import { detectVideoType, generateEmbedUrl, generateThumbnailUrl, getVideoTypeLabel, isShortVideo, isValidVideoUrl } from "@/lib/videoUtils";
 import { cn } from "@/lib/utils";
-import { Play, AlertCircle, Youtube, HardDrive } from "lucide-react";
+import { Play, AlertCircle, Youtube, HardDrive, Smartphone } from "lucide-react";
 
 interface VideoPreviewProps {
   url: string;
@@ -17,12 +17,22 @@ export function VideoPreview({ url, className, showPlayButton = true }: VideoPre
   const isValid = isValidVideoUrl(url);
   const thumbnailUrl = generateThumbnailUrl(url);
   const embedUrl = generateEmbedUrl(url);
+  const isShort = isShortVideo(videoType);
 
   // Reset state when URL changes
   useEffect(() => {
     setIsPlaying(false);
     setThumbnailError(false);
   }, [url]);
+
+  // Wrapper for vertical shorts — limits width so it doesn't stretch full container
+  const ShortWrapper = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex justify-center">
+      <div className="w-48 md:w-56">{children}</div>
+    </div>
+  );
+
+  const aspectClass = isShort ? "aspect-[9/16]" : "aspect-video";
 
   if (!url) {
     return (
@@ -44,16 +54,18 @@ export function VideoPreview({ url, className, showPlayButton = true }: VideoPre
       )}>
         <AlertCircle className="w-12 h-12 mb-2" />
         <p className="text-sm font-medium">URL inválida</p>
-        <p className="text-xs mt-1 opacity-70">Use um link do YouTube ou Google Drive</p>
+        <p className="text-xs mt-1 opacity-70">Use um link do YouTube, YouTube Shorts ou Google Drive</p>
       </div>
     );
   }
 
+  const TypeIcon = isShort ? Smartphone : videoType === "youtube" ? Youtube : HardDrive;
+
   if (isPlaying && embedUrl) {
-    return (
-      <div className={cn("aspect-video rounded-lg overflow-hidden bg-black", className)}>
+    const player = (
+      <div className={cn(aspectClass, "rounded-lg overflow-hidden bg-black", className)}>
         {videoType === "youtube" ? (
-          // Apply the same crop technique for YouTube
+          // Apply the same crop technique for YouTube (not for Shorts)
           <div className="relative w-full h-full overflow-hidden">
             <div 
               className="absolute"
@@ -76,7 +88,7 @@ export function VideoPreview({ url, className, showPlayButton = true }: VideoPre
             <div className="absolute inset-0 z-10" />
           </div>
         ) : (
-          // Drive doesn't need cropping
+          // Drive and Shorts don't need cropping
           <iframe
             src={embedUrl}
             allow="autoplay"
@@ -86,12 +98,15 @@ export function VideoPreview({ url, className, showPlayButton = true }: VideoPre
         )}
       </div>
     );
+
+    return isShort ? <ShortWrapper>{player}</ShortWrapper> : player;
   }
 
-  return (
+  const preview = (
     <div 
       className={cn(
-        "aspect-video rounded-lg overflow-hidden bg-muted relative group cursor-pointer",
+        aspectClass,
+        "rounded-lg overflow-hidden bg-muted relative group cursor-pointer",
         className
       )}
       onClick={() => showPlayButton && setIsPlaying(true)}
@@ -106,11 +121,7 @@ export function VideoPreview({ url, className, showPlayButton = true }: VideoPre
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-muted">
-          {videoType === "youtube" ? (
-            <Youtube className="w-16 h-16 text-muted-foreground" />
-          ) : (
-            <HardDrive className="w-16 h-16 text-muted-foreground" />
-          )}
+          <TypeIcon className="w-16 h-16 text-muted-foreground" />
         </div>
       )}
 
@@ -126,14 +137,12 @@ export function VideoPreview({ url, className, showPlayButton = true }: VideoPre
       {/* Type Badge */}
       <div className="absolute top-3 left-3">
         <span className="px-2 py-1 rounded bg-black/50 backdrop-blur text-xs font-medium text-white flex items-center gap-1">
-          {videoType === "youtube" ? (
-            <Youtube className="w-3 h-3" />
-          ) : (
-            <HardDrive className="w-3 h-3" />
-          )}
+          <TypeIcon className="w-3 h-3" />
           {getVideoTypeLabel(videoType)}
         </span>
       </div>
     </div>
   );
+
+  return isShort ? <ShortWrapper>{preview}</ShortWrapper> : preview;
 }

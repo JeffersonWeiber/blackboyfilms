@@ -357,12 +357,12 @@ export default function PortfolioForm() {
                   <FormLabel>URL do Vídeo *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="https://youtube.com/watch?v=... ou https://drive.google.com/file/d/..."
+                      placeholder="https://youtube.com/watch?v=... ou .../shorts/... ou drive.google.com/..."
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    Cole um link do YouTube ou Google Drive
+                    Cole um link do YouTube, YouTube Shorts ou Google Drive
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

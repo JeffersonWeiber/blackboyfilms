@@ -11,7 +11,7 @@ import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { useNicheBySlug } from "@/hooks/useNiches";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { generateThumbnailUrl, detectVideoType } from "@/lib/videoUtils";
+import { generateThumbnailUrl, detectVideoType, isShortVideo, VideoType } from "@/lib/videoUtils";
 import { ArrowRight, Play, CheckCircle, Loader2 } from "lucide-react";
 
 // Default benefits per niche
@@ -242,6 +242,16 @@ export default function NichoPage() {
 
   const benefits = defaultBenefits[slug || ""] || defaultBenefits.default;
   const heroImage = nicheData.cover_image || "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1920&q=80";
+  const featuredVideoType = featuredVideo
+    ? (() => {
+        const detected = detectVideoType(featuredVideo.video_url);
+        if (detected === "youtube-short") return detected;
+
+        const explicitType = featuredVideo.video_type as VideoType;
+        return explicitType && explicitType !== "unknown" ? explicitType : detected;
+      })()
+    : "unknown";
+  const isFeaturedShort = isShortVideo(featuredVideoType as VideoType);
 
   return (
     <Layout>
@@ -308,8 +318,15 @@ export default function NichoPage() {
               </Button>
             </div>
 
-            {/* Featured Video - Single autoplay video in 16:9 */}
-            <div className="aspect-video rounded-lg overflow-hidden video-glow">
+            {/* Featured Video - auto layout: Shorts become vertical 9:16 */}
+            <div
+              className={cn(
+                "rounded-lg overflow-hidden video-glow mx-auto",
+                isFeaturedShort
+                  ? "aspect-[9/16] h-[460px] sm:h-[520px] md:h-[600px] lg:h-[660px]"
+                  : "w-full aspect-video"
+              )}
+            >
               {isFeaturedLoading ? (
                 <Skeleton className="w-full h-full" />
               ) : featuredVideo ? (

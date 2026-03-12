@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { generateEmbedUrl, detectVideoType, generateThumbnailUrl } from "@/lib/videoUtils";
+import {
+  generateEmbedUrl,
+  detectVideoType,
+  generateThumbnailUrl,
+  VideoType,
+} from "@/lib/videoUtils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +24,15 @@ export function NicheVideoPlayer({
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  const type = videoType ? (videoType as "youtube" | "drive") : detectVideoType(videoUrl);
+  const detectedType = detectVideoType(videoUrl);
+  const explicitType = videoType as VideoType | undefined;
+  const type =
+    detectedType === "youtube-short"
+      ? detectedType
+      : explicitType && explicitType !== "unknown"
+        ? explicitType
+        : detectedType;
+
   const embedUrl = generateEmbedUrl(videoUrl, type, {
     autoplay: true,
     muted: true,
@@ -54,7 +67,6 @@ export function NicheVideoPlayer({
         <Skeleton className="absolute inset-0 z-10" />
       )}
 
-      {/* Video container - clean layout without excessive scaling */}
       <div className="absolute inset-0 overflow-hidden">
         <iframe
           src={embedUrl}
@@ -65,7 +77,6 @@ export function NicheVideoPlayer({
             "w-full h-full border-0 pointer-events-none transition-opacity duration-500",
             isLoaded ? "opacity-100" : "opacity-0"
           )}
-          style={{ objectFit: "cover" }}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
         />

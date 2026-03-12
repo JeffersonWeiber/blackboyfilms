@@ -1,4 +1,11 @@
-export type VideoType = "youtube" | "drive" | "unknown";
+export type VideoType = "youtube" | "youtube-short" | "drive" | "unknown";
+
+/**
+ * Check if a video type represents a vertical (short) format
+ */
+export function isShortVideo(type: VideoType): boolean {
+  return type === "youtube-short";
+}
 
 /**
  * Detect the video type from a URL
@@ -7,6 +14,14 @@ export function detectVideoType(url: string): VideoType {
   if (!url) return "unknown";
   
   const lowerUrl = url.toLowerCase();
+  
+  // YouTube Shorts — must be checked BEFORE generic YouTube
+  if (
+    lowerUrl.includes("youtube.com/shorts/") ||
+    lowerUrl.includes("youtube.com/shorts?")
+  ) {
+    return "youtube-short";
+  }
   
   // YouTube patterns
   if (
@@ -33,7 +48,13 @@ export function extractVideoId(url: string, type?: VideoType): string | null {
   
   const videoType = type || detectVideoType(url);
   
-  if (videoType === "youtube") {
+  if (videoType === "youtube-short") {
+    // Handle youtube.com/shorts/ID or youtube.com/shorts/ID?feature=share
+    const shortsMatch = url.match(/\/shorts\/([^?&/]+)/);
+    if (shortsMatch) return shortsMatch[1];
+  }
+  
+  if (videoType === "youtube" || videoType === "youtube-short") {
     // Handle youtube.com/watch?v=ID
     const watchMatch = url.match(/[?&]v=([^&]+)/);
     if (watchMatch) return watchMatch[1];
@@ -75,8 +96,8 @@ export function generateThumbnailUrl(url: string, type?: VideoType): string | nu
   
   if (!videoId) return null;
   
-  if (videoType === "youtube") {
-    // Try maxresdefault first, fallback to hqdefault
+  if (videoType === "youtube" || videoType === "youtube-short") {
+    // Same thumbnail system for both YouTube and Shorts
     return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
   }
   
@@ -105,7 +126,7 @@ export function generateEmbedUrl(
   
   const { autoplay = true, muted = true, loop = true } = options;
   
-  if (videoType === "youtube") {
+  if (videoType === "youtube" || videoType === "youtube-short") {
     const params = new URLSearchParams({
       autoplay: autoplay ? "1" : "0",
       mute: muted ? "1" : "0",
@@ -153,6 +174,8 @@ export function getVideoTypeLabel(type: VideoType): string {
   switch (type) {
     case "youtube":
       return "YouTube";
+    case "youtube-short":
+      return "YouTube Shorts";
     case "drive":
       return "Google Drive";
     default:

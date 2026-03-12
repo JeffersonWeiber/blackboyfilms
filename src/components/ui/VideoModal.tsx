@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
-import { detectVideoType, generateEmbedUrl, VideoType } from "@/lib/videoUtils";
+import { detectVideoType, generateEmbedUrl, isShortVideo, VideoType } from "@/lib/videoUtils";
 
 interface VideoModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface VideoModalProps {
 export function VideoModal({ isOpen, onClose, videoUrl, videoType }: VideoModalProps) {
   const type = videoType || detectVideoType(videoUrl);
   const embedUrl = generateEmbedUrl(videoUrl, type);
+  const isShort = isShortVideo(type);
 
   if (!embedUrl) return null;
 
@@ -34,10 +35,27 @@ export function VideoModal({ isOpen, onClose, videoUrl, videoType }: VideoModalP
 
           {/* Video Container */}
           <div
-            className="relative w-[90vw] max-w-5xl"
+            className={
+              isShort
+                ? "relative w-[85vw] max-w-sm"
+                : "relative w-[90vw] max-w-5xl"
+            }
             onClick={(e) => e.stopPropagation()}
           >
-            {type === "youtube" ? (
+            {isShort ? (
+              /* Shorts — vertical 9:16, no crop needed */
+              <div 
+                className="relative w-full overflow-hidden rounded-lg bg-black"
+                style={{ aspectRatio: '9/16' }}
+              >
+                <iframe
+                  src={embedUrl}
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                />
+              </div>
+            ) : type === "youtube" ? (
               <div 
                 className="relative w-full overflow-hidden rounded-lg"
                 style={{ aspectRatio: '16/9' }}

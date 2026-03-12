@@ -131,12 +131,18 @@
                 transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .reveal-stagger.visible > *:nth-child(1) { transition-delay: 0.1s; opacity: 1; transform: translateY(0); }
-  .reveal-stagger.visible > *:nth-child(2) { transition-delay: 0.2s; opacity: 1; transform: translateY(0); }
-  .reveal-stagger.visible > *:nth-child(3) { transition-delay: 0.3s; opacity: 1; transform: translateY(0); }
-  .reveal-stagger.visible > *:nth-child(4) { transition-delay: 0.4s; opacity: 1; transform: translateY(0); }
-  .reveal-stagger.visible > *:nth-child(5) { transition-delay: 0.5s; opacity: 1; transform: translateY(0); }
-  .reveal-stagger.visible > *:nth-child(6) { transition-delay: 0.6s; opacity: 1; transform: translateY(0); }
+  .reveal-stagger.visible > * {
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: var(--reveal-delay, 0s);
+  }
+
+  .reveal-stagger.visible > *:nth-child(1) { transition-delay: 0.1s; }
+  .reveal-stagger.visible > *:nth-child(2) { transition-delay: 0.2s; }
+  .reveal-stagger.visible > *:nth-child(3) { transition-delay: 0.3s; }
+  .reveal-stagger.visible > *:nth-child(4) { transition-delay: 0.4s; }
+  .reveal-stagger.visible > *:nth-child(5) { transition-delay: 0.5s; }
+  .reveal-stagger.visible > *:nth-child(6) { transition-delay: 0.6s; }
 
   /* Video container without controls */
   .video-cinema {

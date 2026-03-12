@@ -10,9 +10,20 @@ interface VideoModalProps {
 }
 
 export function VideoModal({ isOpen, onClose, videoUrl, videoType }: VideoModalProps) {
-  const type = videoType || detectVideoType(videoUrl);
-  const embedUrl = generateEmbedUrl(videoUrl, type);
+  const detectedType = detectVideoType(videoUrl);
+  const type =
+    detectedType === "youtube-short"
+      ? detectedType
+      : videoType && videoType !== "unknown"
+        ? videoType
+        : detectedType;
+  const embedUrl = generateEmbedUrl(videoUrl, type, {
+    autoplay: true,
+    muted: false,
+    loop: false,
+  });
   const isShort = isShortVideo(type);
+  const isYoutubePlayer = type === "youtube" || type === "youtube-short";
 
   if (!embedUrl) return null;
 
@@ -42,57 +53,35 @@ export function VideoModal({ isOpen, onClose, videoUrl, videoType }: VideoModalP
             }
             onClick={(e) => e.stopPropagation()}
           >
-            {isShort ? (
-              /* Shorts — vertical 9:16, no crop needed */
-              <div 
-                className="relative w-full overflow-hidden rounded-lg bg-black"
-                style={{ aspectRatio: '9/16' }}
-              >
-                <iframe
-                  src={embedUrl}
-                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                  allowFullScreen
-                  className="w-full h-full border-0"
-                />
-              </div>
-            ) : type === "youtube" ? (
-              <div 
-                className="relative w-full overflow-hidden rounded-lg"
-                style={{ aspectRatio: '16/9' }}
-              >
-                <div 
-                  className="absolute"
-                  style={{
-                    width: '140%',
-                    height: '140%',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                >
+            <div
+              className="relative w-full overflow-hidden rounded-lg bg-black"
+              style={{ aspectRatio: isShort ? "9/16" : "16/9" }}
+            >
+              {isYoutubePlayer ? (
+                <div className="absolute inset-0 overflow-hidden">
                   <iframe
                     src={embedUrl}
                     allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                     allowFullScreen
-                    className="w-full h-full border-0"
-                    style={{ pointerEvents: "none" }}
+                    className="absolute border-0"
+                    style={{
+                      width: isShort ? "110%" : "104%",
+                      height: isShort ? "110%" : "104%",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                    }}
                   />
                 </div>
-                <div className="absolute inset-0 z-10" />
-              </div>
-            ) : (
-              <div 
-                className="relative w-full overflow-hidden rounded-lg"
-                style={{ aspectRatio: '16/9' }}
-              >
+              ) : (
                 <iframe
                   src={embedUrl}
                   allow="autoplay; fullscreen"
                   allowFullScreen
                   className="w-full h-full border-0"
                 />
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </DialogPortal>

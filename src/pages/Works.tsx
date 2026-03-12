@@ -139,8 +139,7 @@ export default function Works() {
             <div
               ref={ref}
               className={cn(
-                "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 reveal-stagger",
-                "auto-rows-[minmax(0,1fr)]",
+                "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 reveal-stagger",
                 // Force visible when filtering to prevent blank spaces if the ScrollReveal doesn't trigger again
                 (isVisible || (!isLoading && filteredProjects && filteredProjects.length > 0)) && "visible"
               )}
@@ -153,10 +152,7 @@ export default function Works() {
                   <div
                     key={project.id}
                     className={cn(
-                      "group relative rounded-lg overflow-hidden cursor-pointer video-glow",
-                      isShort
-                        ? "aspect-[9/16] row-span-2"
-                        : "aspect-video col-span-2"
+                      "group relative rounded-xl overflow-hidden cursor-pointer video-glow aspect-video"
                     )}
                     // Stagger delay via CSS custom property consumed by .reveal-stagger.visible > *
                     style={{ '--reveal-delay': `${index * 0.1}s` } as React.CSSProperties}
@@ -180,10 +176,7 @@ export default function Works() {
                         <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gold/20 backdrop-blur flex items-center justify-center border border-gold/50">
                           <Play className="w-6 h-6 text-gold" />
                         </div>
-                        <h3 className={cn(
-                          "font-medium text-white",
-                          isShort ? "text-sm" : "text-lg"
-                        )}>
+                        <h3 className="font-medium text-white text-lg">
                           {project.title}
                         </h3>
                       </div>
